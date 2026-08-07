@@ -116,7 +116,7 @@ Các nghiệp vụ này đều thay đổi số lượng tồn kho và có thể
 
 ---
 
-## Các cơ chế hỗ trợ
+## Các cơ chế hỗ trợ 
 
 - PostgreSQL Row-Level Lock (`SELECT ... FOR UPDATE`) để xử lý concurrency trong database.
 - Transaction để đảm bảo Atomicity và Rollback khi xảy ra lỗi.
