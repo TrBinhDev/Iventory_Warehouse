@@ -1,4 +1,4 @@
-## Master Data
+## Master Data 
 
 ```prisma
 enum CategoryStatus {
