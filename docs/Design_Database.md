@@ -1,4 +1,4 @@
-# Actor
+# Actor 
 
 Admin: Quản lý hệ thống
 Warehouse Manager: Quản lý kho
