@@ -34,7 +34,7 @@ SKU       (1) ─────────────< Inventory (N)
 Inventory (1) ─────────────< InventoryMovement (N)   // định nghĩa ở module Audit
 ```
 
-## Note — các điểm quan trọng
+## Note — các điểm quan trọng 
 
 1. **`quantityAvailable` không lưu cột riêng**, luôn tính runtime = `quantityOnHand - quantityReserved`. Vì mọi thao tác đọc/ghi số này đều nằm trong transaction đã `SELECT ... FOR UPDATE` trên chính row Inventory rồi, nên tính tại chỗ luôn đúng, tránh thêm 1 nguồn dữ liệu có thể lệch (stale) nếu code quên đồng bộ.
 
