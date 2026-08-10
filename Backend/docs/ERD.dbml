@@ -1,0 +1,518 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table User {
+  id String [pk]
+  role UserRole [not null]
+  warehouseId String
+  warehouse Warehouse
+  fullName String [not null]
+  email String [unique, not null]
+  passwordHash String [not null]
+  isEmailVerified Boolean [not null, default: false]
+  phone String
+  avatarUrl String
+  status UserStatus [not null, default: 'ACTIVE']
+  lastLoginAt DateTime
+  reservations Reservation [not null]
+  salesOrders SalesOrder [not null]
+  createdInbounds Inbound [not null]
+  createdOutbounds Outbound [not null]
+  createdTransfers Transfer [not null]
+  createdAdjustments InventoryAdjustment [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Category {
+  id String [pk]
+  code String [unique, not null]
+  name String [not null]
+  status CategoryStatus [not null, default: 'ACTIVE']
+  products Product [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Warehouse {
+  id String [pk]
+  code String [unique, not null]
+  name String [not null]
+  address String
+  phone String
+  status WarehouseStatus [not null, default: 'ACTIVE']
+  users User [not null]
+  inventories Inventory [not null]
+  reservations Reservation [not null]
+  salesOrders SalesOrder [not null]
+  inbounds Inbound [not null]
+  outbounds Outbound [not null]
+  adjustments InventoryAdjustment [not null]
+  transfersFrom Transfer [not null]
+  transfersTo Transfer [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Supplier {
+  id String [pk]
+  code String [unique, not null]
+  name String [not null]
+  contactName String
+  phone String
+  email String
+  address String
+  taxCode String
+  status SupplierStatus [not null, default: 'ACTIVE']
+  inbounds Inbound [not null]
+  outbounds Outbound [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Product {
+  id String [pk]
+  categoryId String
+  category Category
+  code String [unique, not null]
+  name String [not null]
+  description String
+  unit String [not null]
+  images String[] [not null]
+  status ProductStatus [not null, default: 'ACTIVE']
+  skus SKU [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table SKU {
+  id String [pk]
+  productId String [not null]
+  product Product [not null]
+  skuCode String [unique, not null]
+  barcode String [unique]
+  attributes Json
+  price Decimal [not null]
+  cost Decimal
+  weight Decimal
+  status SKUStatus [not null, default: 'ACTIVE']
+  inventories Inventory [not null]
+  reservationItems ReservationItem [not null]
+  salesOrderItems SalesOrderItem [not null]
+  inboundItems InboundItem [not null]
+  outboundItems OutboundItem [not null]
+  transferItems TransferItem [not null]
+  adjustmentItems InventoryAdjustmentItem [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Inventory {
+  id String [pk]
+  warehouseId String [not null]
+  warehouse Warehouse [not null]
+  skuId String [not null]
+  sku SKU [not null]
+  quantityOnHand Int [not null, default: 0]
+  quantityReserved Int [not null, default: 0]
+  version Int [not null, default: 0]
+  movements InventoryMovement [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+
+  indexes {
+    (warehouseId, skuId) [unique]
+  }
+}
+
+Table Reservation {
+  id String [pk]
+  warehouseId String [not null]
+  warehouse Warehouse [not null]
+  customerId String [not null]
+  customer User [not null]
+  status ReservationStatus [not null, default: 'PENDING']
+  expiresAt DateTime [not null]
+  confirmedAt DateTime
+  cancelledAt DateTime
+  expiredAt DateTime
+  cancelReason String
+  items ReservationItem [not null]
+  salesOrders SalesOrder [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table ReservationItem {
+  id String [pk]
+  reservationId String [not null]
+  reservation Reservation [not null]
+  skuId String [not null]
+  sku SKU [not null]
+  quantity Int [not null]
+  unitPrice Decimal [not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table SalesOrder {
+  id String [pk]
+  warehouseId String [not null]
+  warehouse Warehouse [not null]
+  customerId String [not null]
+  customer User [not null]
+  reservationId String
+  reservation Reservation
+  status SalesOrderStatus [not null, default: 'PENDING']
+  totalAmount Decimal [not null]
+  paidAt DateTime
+  confirmedAt DateTime
+  completedAt DateTime
+  cancelledAt DateTime
+  refundedAt DateTime
+  cancelReason String
+  items SalesOrderItem [not null]
+  outbounds Outbound [not null]
+  inbounds Inbound [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table SalesOrderItem {
+  id String [pk]
+  salesOrderId String [not null]
+  salesOrder SalesOrder [not null]
+  skuId String [not null]
+  sku SKU [not null]
+  quantity Int [not null]
+  unitPrice Decimal [not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table Inbound {
+  id String [pk]
+  warehouseId String [not null]
+  warehouse Warehouse [not null]
+  reason InboundReason [not null, default: 'FROM_SUPPLIER']
+  supplierId String
+  supplier Supplier
+  salesOrderId String
+  salesOrder SalesOrder
+  createdByUserId String [not null]
+  createdBy User [not null]
+  status InboundStatus [not null, default: 'DRAFT']
+  confirmedAt DateTime
+  receivedAt DateTime
+  cancelledAt DateTime
+  cancelReason String
+  items InboundItem [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table InboundItem {
+  id String [pk]
+  inboundId String [not null]
+  inbound Inbound [not null]
+  skuId String [not null]
+  sku SKU [not null]
+  quantity Int [not null]
+  unitCost Decimal [not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table Outbound {
+  id String [pk]
+  warehouseId String [not null]
+  warehouse Warehouse [not null]
+  reason OutboundReason [not null, default: 'SALES_ORDER']
+  salesOrderId String
+  salesOrder SalesOrder
+  supplierId String
+  supplier Supplier
+  createdByUserId String [not null]
+  createdBy User [not null]
+  note String
+  status OutboundStatus [not null, default: 'DRAFT']
+  confirmedAt DateTime
+  shippedAt DateTime
+  cancelledAt DateTime
+  cancelReason String
+  items OutboundItem [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table OutboundItem {
+  id String [pk]
+  outboundId String [not null]
+  outbound Outbound [not null]
+  skuId String [not null]
+  sku SKU [not null]
+  quantity Int [not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table Transfer {
+  id String [pk]
+  fromWarehouseId String [not null]
+  fromWarehouse Warehouse [not null]
+  toWarehouseId String [not null]
+  toWarehouse Warehouse [not null]
+  createdByUserId String [not null]
+  createdBy User [not null]
+  status TransferStatus [not null, default: 'DRAFT']
+  confirmedAt DateTime
+  shippedAt DateTime
+  receivedAt DateTime
+  cancelledAt DateTime
+  cancelReason String
+  items TransferItem [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table TransferItem {
+  id String [pk]
+  transferId String [not null]
+  transfer Transfer [not null]
+  skuId String [not null]
+  sku SKU [not null]
+  quantityShipped Int [not null]
+  quantityReceived Int
+  note String
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table InventoryAdjustment {
+  id String [pk]
+  warehouseId String [not null]
+  warehouse Warehouse [not null]
+  createdByUserId String [not null]
+  createdBy User [not null]
+  reason AdjustmentReason [not null, default: 'STOCK_COUNT']
+  note String
+  status AdjustmentStatus [not null, default: 'DRAFT']
+  completedAt DateTime
+  items InventoryAdjustmentItem [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table InventoryAdjustmentItem {
+  id String [pk]
+  adjustmentId String [not null]
+  adjustment InventoryAdjustment [not null]
+  skuId String [not null]
+  sku SKU [not null]
+  quantityBefore Int [not null]
+  quantityAfter Int [not null]
+  expectedVersion Int [not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table InventoryMovement {
+  id String [pk]
+  inventoryId String [not null]
+  inventory Inventory [not null]
+  movementType MovementType [not null]
+  referenceType ReferenceType [not null]
+  referenceId String [not null]
+  onHandBefore Int [not null]
+  onHandAfter Int [not null]
+  reservedBefore Int [not null]
+  reservedAfter Int [not null]
+  note String
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Enum UserRole {
+  ADMIN
+  WAREHOUSE_MANAGER
+  WAREHOUSE_STAFF
+  CUSTOMER
+}
+
+Enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+Enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+Enum WarehouseStatus {
+  ACTIVE
+  INACTIVE
+}
+
+Enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+}
+
+Enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+Enum SKUStatus {
+  ACTIVE
+  INACTIVE
+}
+
+Enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+Enum SalesOrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+Enum InboundStatus {
+  DRAFT
+  CONFIRMED
+  RECEIVED
+  CANCELLED
+}
+
+Enum InboundReason {
+  FROM_SUPPLIER
+  CUSTOMER_RETURN
+}
+
+Enum OutboundStatus {
+  DRAFT
+  CONFIRMED
+  SHIPPED
+  CANCELLED
+}
+
+Enum OutboundReason {
+  SALES_ORDER
+  RETURN_TO_SUPPLIER
+  DAMAGED
+  OTHER
+}
+
+Enum TransferStatus {
+  DRAFT
+  CONFIRMED
+  SHIPPED
+  RECEIVED
+  CANCELLED
+}
+
+Enum AdjustmentStatus {
+  DRAFT
+  COMPLETED
+}
+
+Enum AdjustmentReason {
+  STOCK_COUNT
+  DAMAGED
+  LOST
+  OTHER
+}
+
+Enum MovementType {
+  RESERVE
+  RELEASE
+  INBOUND
+  OUTBOUND
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT
+}
+
+Enum ReferenceType {
+  RESERVATION
+  SALES_ORDER
+  INBOUND
+  OUTBOUND
+  TRANSFER
+  INVENTORY_ADJUSTMENT
+}
+
+Ref: User.warehouseId > Warehouse.id
+
+Ref: Product.categoryId > Category.id
+
+Ref: SKU.productId > Product.id
+
+Ref: Inventory.warehouseId > Warehouse.id
+
+Ref: Inventory.skuId > SKU.id
+
+Ref: Reservation.warehouseId > Warehouse.id
+
+Ref: Reservation.customerId > User.id
+
+Ref: ReservationItem.reservationId > Reservation.id
+
+Ref: ReservationItem.skuId > SKU.id
+
+Ref: SalesOrder.warehouseId > Warehouse.id
+
+Ref: SalesOrder.customerId > User.id
+
+Ref: SalesOrder.reservationId > Reservation.id
+
+Ref: SalesOrderItem.salesOrderId > SalesOrder.id
+
+Ref: SalesOrderItem.skuId > SKU.id
+
+Ref: Inbound.warehouseId > Warehouse.id
+
+Ref: Inbound.supplierId > Supplier.id
+
+Ref: Inbound.salesOrderId > SalesOrder.id
+
+Ref: Inbound.createdByUserId > User.id
+
+Ref: InboundItem.inboundId > Inbound.id
+
+Ref: InboundItem.skuId > SKU.id
+
+Ref: Outbound.warehouseId > Warehouse.id
+
+Ref: Outbound.salesOrderId > SalesOrder.id
+
+Ref: Outbound.supplierId > Supplier.id
+
+Ref: Outbound.createdByUserId > User.id
+
+Ref: OutboundItem.outboundId > Outbound.id
+
+Ref: OutboundItem.skuId > SKU.id
+
+Ref: Transfer.fromWarehouseId > Warehouse.id
+
+Ref: Transfer.toWarehouseId > Warehouse.id
+
+Ref: Transfer.createdByUserId > User.id
+
+Ref: TransferItem.transferId > Transfer.id
+
+Ref: TransferItem.skuId > SKU.id
+
+Ref: InventoryAdjustment.warehouseId > Warehouse.id
+
+Ref: InventoryAdjustment.createdByUserId > User.id
+
+Ref: InventoryAdjustmentItem.adjustmentId > InventoryAdjustment.id
+
+Ref: InventoryAdjustmentItem.skuId > SKU.id
+
+Ref: InventoryMovement.inventoryId > Inventory.id

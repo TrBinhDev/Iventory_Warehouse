@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+.claude
+
+# Environment
+.env
+.env.*
+
+# Build
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Prisma (nếu generate ra ngoài node_modules)
+prisma/generated/
