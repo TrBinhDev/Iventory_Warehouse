@@ -32,7 +32,10 @@ model Inbound {
 
   status          InboundStatus   @default(DRAFT)
 
+  confirmedAt     DateTime?
   receivedAt      DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
 
   items           InboundItem[]
 

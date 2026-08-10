@@ -23,8 +23,11 @@ model Transfer {
 
   status            TransferStatus  @default(DRAFT)
 
+  confirmedAt       DateTime?
   shippedAt         DateTime?
   receivedAt        DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
 
   items             TransferItem[]
 

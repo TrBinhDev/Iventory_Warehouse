@@ -21,6 +21,11 @@ model Reservation {
 
   expiresAt     DateTime
 
+  confirmedAt   DateTime?
+  cancelledAt   DateTime?
+  expiredAt     DateTime?
+  cancelReason  String?
+
   items         ReservationItem[]
 
   createdAt     DateTime            @default(now())
@@ -92,3 +97,5 @@ COMMIT → nhả lock
 7. **Fail do hết hàng giữa chừng → toàn bộ transaction rollback**, không tạo Reservation/ReservationItem nào, `Inventory` không đổi gì. API trả `409 Conflict`.
 
 8. **`ReservationItem` không có `updatedAt`** — snapshot bất biến, không sửa sau khi tạo. Muốn đổi số lượng thì hủy Reservation cũ, tạo mới.
+
+9. **`confirmedAt`/`cancelledAt`/`expiredAt`/`cancelReason`** — cần thiết vì `InventoryMovement` chỉ ghi log ở bước có chạm Inventory; các bước chuyển status không đụng Inventory (VD: `PENDING → CONFIRMED`) sẽ hoàn toàn mất dấu vết nếu thiếu field này. `expiredAt` tách riêng khỏi `cancelledAt` vì khác nguồn gốc: hệ thống tự động (BullMQ job/cron) vs người dùng chủ động hủy — quan trọng khi audit/debug.

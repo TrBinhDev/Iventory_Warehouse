@@ -36,7 +36,10 @@ model Outbound {
 
   status          OutboundStatus  @default(DRAFT)
 
+  confirmedAt     DateTime?
   shippedAt       DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
 
   items           OutboundItem[]
 

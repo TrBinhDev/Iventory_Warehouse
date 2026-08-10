@@ -26,6 +26,13 @@ model SalesOrder {
 
   totalAmount     Decimal             @db.Decimal(15, 2)
 
+  paidAt          DateTime?
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  refundedAt      DateTime?
+  cancelReason    String?
+
   items           SalesOrderItem[]
 
   createdAt       DateTime            @default(now())
@@ -74,6 +81,7 @@ SKU         (1) ─────────────< SalesOrderItem (N)
 2. **`reservationId` nullable — phân biệt 2 luồng tạo SalesOrder, ảnh hưởng trực tiếp đến cách xử lý Inventory:**
 
    **Luồng A — Buy Now (reservationId = null):**
+
    ```
    BEGIN transaction
      SELECT * FROM Inventory WHERE ... FOR UPDATE
@@ -84,6 +92,7 @@ SKU         (1) ─────────────< SalesOrderItem (N)
    ```
 
    **Luồng B — Convert từ Reservation đã CONFIRMED (reservationId = <id>):**
+
    ```
    BEGIN transaction
      → check Reservation.status = CONFIRMED
@@ -91,6 +100,7 @@ SKU         (1) ─────────────< SalesOrderItem (N)
      → INSERT SalesOrder + SalesOrderItem (copy data từ ReservationItem)
    COMMIT
    ```
+
    ⚠️ Nếu convert mà chạy lại đúng luồng A (check available + tăng reserved) sẽ bị tăng `reserved` gấp đôi cho cùng 1 lượng hàng — bug nghiêm trọng, phải tách rõ 2 nhánh xử lý ở tầng service.
 
 3. **`status` gồm cả `REFUNDED`** — thêm sẵn dù project hiện tại chưa làm module thanh toán, để sau này tích hợp payment không phải sửa schema.
@@ -102,3 +112,5 @@ SKU         (1) ─────────────< SalesOrderItem (N)
 6. **`Outbound` xử lý xuất hàng dựa trên `SalesOrderItem`** — không phân biệt SalesOrder đến từ luồng A hay B, đều trừ `onHand` và `reserved` như nhau khi xuất kho thật.
 
 7. **Không có `shippingAddress`** — ngoài phạm vi project (tập trung concurrency/locking, không phải luồng giao vận).
+
+8. **`paidAt`/`confirmedAt`/`completedAt`/`cancelledAt`/`refundedAt`/`cancelReason`** — cùng nguyên tắc với Reservation: track đầy đủ mọi bước chuyển status, kể cả bước không đụng Inventory (VD: `PENDING → PAID` chỉ là xác nhận thanh toán, không chạm Inventory). Không có `expiredAt` vì `SalesOrder` không có status `EXPIRED` (Buy Now không có TTL, khác Reservation).
