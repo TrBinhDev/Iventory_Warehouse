@@ -56,5 +56,3 @@ InventoryAdjustmentItem // Danh sách SKU được điều chỉnh trong một p
 ## Audit
 
 InventoryMovement // Lưu lịch sử mọi biến động tồn kho (Inbound, Outbound, Transfer, Reservation, Buy Now, Adjustment) phục vụ audit và truy vết.
-
-# Thiết kế thuộc tính
