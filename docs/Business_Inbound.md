@@ -8,14 +8,24 @@ enum InboundStatus {
   CANCELLED
 }
 
+enum InboundReason {
+  FROM_SUPPLIER
+  CUSTOMER_RETURN
+}
+
 model Inbound {
   id              String          @id @default(uuid()) @db.Uuid
 
   warehouseId     String          @db.Uuid
   warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
 
-  supplierId      String          @db.Uuid
-  supplier        Supplier        @relation(fields: [supplierId], references: [id])
+  reason          InboundReason   @default(FROM_SUPPLIER)
+
+  supplierId      String?         @db.Uuid
+  supplier        Supplier?       @relation(fields: [supplierId], references: [id])
+
+  salesOrderId    String?         @db.Uuid
+  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id])
 
   createdByUserId String          @db.Uuid
   createdBy       User            @relation(fields: [createdByUserId], references: [id])
@@ -32,6 +42,7 @@ model Inbound {
   @@index([status])
   @@index([warehouseId])
   @@index([supplierId])
+  @@index([salesOrderId])
 }
 
 model InboundItem {
@@ -57,11 +68,12 @@ model InboundItem {
 ## Relationship
 
 ```text
-Warehouse (1) ─────────────< Inbound (N)
-Supplier  (1) ─────────────< Inbound (N)
-User      (1) ─────────────< Inbound (N)      // createdBy - nhân viên tạo phiếu
-Inbound   (1) ─────────────< InboundItem (N)
-SKU       (1) ─────────────< InboundItem (N)
+Warehouse  (1) ─────────────< Inbound (N)
+Supplier   (1) ─────────────< Inbound (N)      // nullable, chỉ có khi reason = FROM_SUPPLIER
+SalesOrder (1) ─────────────< Inbound (N)      // nullable, chỉ có khi reason = CUSTOMER_RETURN
+User       (1) ─────────────< Inbound (N)      // createdBy - nhân viên tạo phiếu
+Inbound    (1) ─────────────< InboundItem (N)
+SKU        (1) ─────────────< InboundItem (N)
 ```
 
 ## Note — các điểm quan trọng
@@ -73,6 +85,13 @@ SKU       (1) ─────────────< InboundItem (N)
    - `CANCELLED`: hủy phiếu — **chỉ cho phép hủy khi đang `DRAFT` hoặc `CONFIRMED`**, validate ở service layer. Không cho hủy khi đã `RECEIVED` (vì lúc đó `onHand` đã cộng rồi, hủy sẽ cần luồng rollback riêng phức tạp hơn, ngoài scope hiện tại).
 
 2. **`createdByUserId`** — track nhân viên tạo phiếu, dùng cho audit. Ở tầng service nên validate `createdBy.warehouseId === Inbound.warehouseId` (nhân viên chỉ tạo phiếu nhập cho đúng kho mình thuộc, trừ Admin).
+
+2b. **`reason` phân biệt 2 nguồn nhập kho, kéo theo `supplierId`/`salesOrderId` đều nullable và bắt buộc theo điều kiện (validate ở service layer, không phải DB constraint):**
+
+- `reason = FROM_SUPPLIER` (mặc định) → `supplierId` bắt buộc, `salesOrderId` phải `null`
+- `reason = CUSTOMER_RETURN` → `salesOrderId` bắt buộc (biết trả hàng thuộc đơn nào), `supplierId` phải `null`
+
+Về mặt Inventory, cả 2 nhánh xử lý **giống hệt nhau** ở bước `RECEIVED` (cùng cộng `onHand`, cùng cần `FOR UPDATE` + upsert) — `reason` chỉ phục vụ mục đích audit/báo cáo, không thay đổi logic locking.
 
 3. **`InboundItem.unitCost` là snapshot giá nhập tại thời điểm đó** — không lấy `SKU.cost` hiện tại, cùng nguyên tắc với `unitPrice` ở Reservation/SalesOrder.
 
