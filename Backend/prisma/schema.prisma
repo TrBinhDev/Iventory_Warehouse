@@ -4,7 +4,7 @@ generator client {
 
 generator dbml {
   provider   = "prisma-dbml-generator"
-  output     = "../docs"
+  output     = "../../docs"
   outputName = "ERD.dbml"
 }
 
