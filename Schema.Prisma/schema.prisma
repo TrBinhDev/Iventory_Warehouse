@@ -1,0 +1,627 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  WAREHOUSE_MANAGER
+  WAREHOUSE_STAFF
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+model User {
+  id                String                     @id @default(uuid()) @db.Uuid
+
+  role              UserRole
+
+  warehouseId       String?                    @db.Uuid
+  warehouse         Warehouse?                 @relation(fields: [warehouseId], references: [id])
+
+  fullName          String                     @db.VarChar(255)
+  email             String                     @unique @db.VarChar(255)
+  passwordHash      String
+  isEmailVerified   Boolean                    @default(false)
+  phone             String?                    @db.VarChar(20)
+  avatarUrl         String?
+  status            UserStatus                 @default(ACTIVE)
+  lastLoginAt       DateTime?
+
+  reservations           Reservation[]
+  salesOrders             SalesOrder[]
+  createdInbounds          Inbound[]
+  createdOutbounds         Outbound[]
+  createdTransfers         Transfer[]
+  createdAdjustments       InventoryAdjustment[]
+
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  @@index([role])
+  @@index([status])
+  @@index([warehouseId])
+}
+
+// ============================================================
+// MASTER DATA
+// ============================================================
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Category {
+  id          String          @id @default(uuid()) @db.Uuid
+  code        String          @unique @db.VarChar(50)
+  name        String          @db.VarChar(255)
+  status      CategoryStatus  @default(ACTIVE)
+
+  products    Product[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status])
+}
+
+enum WarehouseStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Warehouse {
+  id                String          @id @default(uuid()) @db.Uuid
+  code              String          @unique @db.VarChar(50)
+  name              String          @db.VarChar(255)
+  address           String?
+  phone             String?         @db.VarChar(20)
+  status            WarehouseStatus @default(ACTIVE)
+
+  users             User[]
+  inventories       Inventory[]
+  reservations      Reservation[]
+  salesOrders       SalesOrder[]
+  inbounds          Inbound[]
+  outbounds         Outbound[]
+  adjustments       InventoryAdjustment[]
+
+  transfersFrom     Transfer[]      @relation("TransferFrom")
+  transfersTo       Transfer[]      @relation("TransferTo")
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([status])
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Supplier {
+  id          String          @id @default(uuid()) @db.Uuid
+  code        String          @unique @db.VarChar(50)
+  name        String          @db.VarChar(255)
+  contactName String?         @db.VarChar(255)
+  phone       String?         @db.VarChar(20)
+  email       String?         @db.VarChar(255)
+  address     String?
+  taxCode     String?         @db.VarChar(50)
+  status      SupplierStatus  @default(ACTIVE)
+
+  inbounds    Inbound[]
+  outbounds   Outbound[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status])
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Product {
+  id          String          @id @default(uuid()) @db.Uuid
+
+  categoryId  String?         @db.Uuid
+  category    Category?       @relation(fields: [categoryId], references: [id])
+
+  code        String          @unique @db.VarChar(50)
+  name        String          @db.VarChar(255)
+  description String?
+  unit        String          @db.VarChar(20)
+  images      String[]
+  status      ProductStatus   @default(ACTIVE)
+
+  skus        SKU[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+enum SKUStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model SKU {
+  id          String          @id @default(uuid()) @db.Uuid
+
+  productId   String          @db.Uuid
+  product     Product         @relation(fields: [productId], references: [id])
+
+  skuCode     String          @unique @db.VarChar(50)
+  barcode     String?         @unique @db.VarChar(50)
+  attributes  Json?
+  price       Decimal         @db.Decimal(15, 2)
+  cost        Decimal?        @db.Decimal(15, 2)
+  weight      Decimal?        @db.Decimal(10, 3)
+  status      SKUStatus       @default(ACTIVE)
+
+  inventories       Inventory[]
+  reservationItems  ReservationItem[]
+  salesOrderItems   SalesOrderItem[]
+  inboundItems      InboundItem[]
+  outboundItems     OutboundItem[]
+  transferItems     TransferItem[]
+  adjustmentItems   InventoryAdjustmentItem[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([productId])
+  @@index([status])
+}
+
+// ============================================================
+// INVENTORY
+// ============================================================
+
+model Inventory {
+  id                String              @id @default(uuid()) @db.Uuid
+
+  warehouseId       String              @db.Uuid
+  warehouse         Warehouse           @relation(fields: [warehouseId], references: [id])
+
+  skuId             String              @db.Uuid
+  sku               SKU                 @relation(fields: [skuId], references: [id])
+
+  quantityOnHand    Int                 @default(0)
+  quantityReserved  Int                 @default(0)
+  version           Int                 @default(0)
+
+  movements         InventoryMovement[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([warehouseId, skuId])
+  @@index([skuId])
+}
+
+// ============================================================
+// BUSINESS — Reservation
+// ============================================================
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+model Reservation {
+  id            String              @id @default(uuid()) @db.Uuid
+
+  warehouseId   String              @db.Uuid
+  warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
+
+  customerId    String              @db.Uuid
+  customer      User                @relation(fields: [customerId], references: [id])
+
+  status        ReservationStatus   @default(PENDING)
+  expiresAt     DateTime
+
+  items         ReservationItem[]
+  salesOrders   SalesOrder[]
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([warehouseId])
+  @@index([customerId])
+}
+
+model ReservationItem {
+  id              String        @id @default(uuid()) @db.Uuid
+
+  reservationId   String        @db.Uuid
+  reservation     Reservation   @relation(fields: [reservationId], references: [id])
+
+  skuId           String        @db.Uuid
+  sku             SKU           @relation(fields: [skuId], references: [id])
+
+  quantity        Int
+  unitPrice       Decimal       @db.Decimal(15, 2)
+
+  createdAt       DateTime      @default(now())
+
+  @@index([reservationId])
+  @@index([skuId])
+}
+
+// ============================================================
+// BUSINESS — SalesOrder
+// ============================================================
+
+enum SalesOrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+model SalesOrder {
+  id              String              @id @default(uuid()) @db.Uuid
+
+  warehouseId     String              @db.Uuid
+  warehouse       Warehouse           @relation(fields: [warehouseId], references: [id])
+
+  customerId      String              @db.Uuid
+  customer        User                @relation(fields: [customerId], references: [id])
+
+  reservationId   String?             @db.Uuid
+  reservation     Reservation?        @relation(fields: [reservationId], references: [id])
+
+  status          SalesOrderStatus    @default(PENDING)
+  totalAmount     Decimal             @db.Decimal(15, 2)
+
+  items           SalesOrderItem[]
+  outbounds       Outbound[]
+  inbounds        Inbound[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status])
+  @@index([warehouseId])
+  @@index([customerId])
+  @@index([reservationId])
+}
+
+model SalesOrderItem {
+  id            String        @id @default(uuid()) @db.Uuid
+
+  salesOrderId  String        @db.Uuid
+  salesOrder    SalesOrder    @relation(fields: [salesOrderId], references: [id])
+
+  skuId         String        @db.Uuid
+  sku           SKU           @relation(fields: [skuId], references: [id])
+
+  quantity      Int
+  unitPrice     Decimal       @db.Decimal(15, 2)
+
+  createdAt     DateTime      @default(now())
+
+  @@index([salesOrderId])
+  @@index([skuId])
+}
+
+// ============================================================
+// BUSINESS — Inbound
+// ============================================================
+
+enum InboundStatus {
+  DRAFT
+  CONFIRMED
+  RECEIVED
+  CANCELLED
+}
+
+enum InboundReason {
+  FROM_SUPPLIER
+  CUSTOMER_RETURN
+}
+
+model Inbound {
+  id              String          @id @default(uuid()) @db.Uuid
+
+  warehouseId     String          @db.Uuid
+  warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
+
+  reason          InboundReason   @default(FROM_SUPPLIER)
+
+  supplierId      String?         @db.Uuid
+  supplier        Supplier?       @relation(fields: [supplierId], references: [id])
+
+  salesOrderId    String?         @db.Uuid
+  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id])
+
+  createdByUserId String          @db.Uuid
+  createdBy       User            @relation(fields: [createdByUserId], references: [id])
+
+  status          InboundStatus   @default(DRAFT)
+  receivedAt      DateTime?
+
+  items           InboundItem[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([warehouseId])
+  @@index([supplierId])
+  @@index([salesOrderId])
+}
+
+model InboundItem {
+  id            String        @id @default(uuid()) @db.Uuid
+
+  inboundId     String        @db.Uuid
+  inbound       Inbound       @relation(fields: [inboundId], references: [id])
+
+  skuId         String        @db.Uuid
+  sku           SKU           @relation(fields: [skuId], references: [id])
+
+  quantity      Int
+  unitCost      Decimal       @db.Decimal(15, 2)
+
+  createdAt     DateTime      @default(now())
+
+  @@index([inboundId])
+  @@index([skuId])
+}
+
+// ============================================================
+// BUSINESS — Outbound
+// ============================================================
+
+enum OutboundStatus {
+  DRAFT
+  CONFIRMED
+  SHIPPED
+  CANCELLED
+}
+
+enum OutboundReason {
+  SALES_ORDER
+  RETURN_TO_SUPPLIER
+  DAMAGED
+  OTHER
+}
+
+model Outbound {
+  id              String          @id @default(uuid()) @db.Uuid
+
+  warehouseId     String          @db.Uuid
+  warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
+
+  reason          OutboundReason  @default(SALES_ORDER)
+
+  salesOrderId    String?         @db.Uuid
+  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id])
+
+  supplierId      String?         @db.Uuid
+  supplier        Supplier?       @relation(fields: [supplierId], references: [id])
+
+  createdByUserId String          @db.Uuid
+  createdBy       User            @relation(fields: [createdByUserId], references: [id])
+
+  note            String?
+  status          OutboundStatus  @default(DRAFT)
+  shippedAt       DateTime?
+
+  items           OutboundItem[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([warehouseId])
+  @@index([salesOrderId])
+  @@index([supplierId])
+}
+
+model OutboundItem {
+  id            String        @id @default(uuid()) @db.Uuid
+
+  outboundId    String        @db.Uuid
+  outbound      Outbound      @relation(fields: [outboundId], references: [id])
+
+  skuId         String        @db.Uuid
+  sku           SKU           @relation(fields: [skuId], references: [id])
+
+  quantity      Int
+
+  createdAt     DateTime      @default(now())
+
+  @@index([outboundId])
+  @@index([skuId])
+}
+
+// ============================================================
+// BUSINESS — Transfer
+// ============================================================
+
+enum TransferStatus {
+  DRAFT
+  CONFIRMED
+  SHIPPED
+  RECEIVED
+  CANCELLED
+}
+
+model Transfer {
+  id                String          @id @default(uuid()) @db.Uuid
+
+  fromWarehouseId   String          @db.Uuid
+  fromWarehouse     Warehouse       @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+
+  toWarehouseId     String          @db.Uuid
+  toWarehouse       Warehouse       @relation("TransferTo", fields: [toWarehouseId], references: [id])
+
+  createdByUserId   String          @db.Uuid
+  createdBy         User            @relation(fields: [createdByUserId], references: [id])
+
+  status            TransferStatus  @default(DRAFT)
+  shippedAt         DateTime?
+  receivedAt        DateTime?
+
+  items             TransferItem[]
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([status])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+}
+
+model TransferItem {
+  id                String        @id @default(uuid()) @db.Uuid
+
+  transferId        String        @db.Uuid
+  transfer          Transfer      @relation(fields: [transferId], references: [id])
+
+  skuId             String        @db.Uuid
+  sku               SKU           @relation(fields: [skuId], references: [id])
+
+  quantityShipped   Int
+  quantityReceived  Int?
+  note              String?
+
+  createdAt         DateTime      @default(now())
+
+  @@index([transferId])
+  @@index([skuId])
+}
+
+// ============================================================
+// BUSINESS — InventoryAdjustment
+// ============================================================
+
+enum AdjustmentStatus {
+  DRAFT
+  COMPLETED
+}
+
+enum AdjustmentReason {
+  STOCK_COUNT
+  DAMAGED
+  LOST
+  OTHER
+}
+
+model InventoryAdjustment {
+  id              String                    @id @default(uuid()) @db.Uuid
+
+  warehouseId     String                    @db.Uuid
+  warehouse       Warehouse                 @relation(fields: [warehouseId], references: [id])
+
+  createdByUserId String                    @db.Uuid
+  createdBy       User                      @relation(fields: [createdByUserId], references: [id])
+
+  reason          AdjustmentReason          @default(STOCK_COUNT)
+  note            String?
+  status          AdjustmentStatus          @default(DRAFT)
+  completedAt     DateTime?
+
+  items           InventoryAdjustmentItem[]
+
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+
+  @@index([status])
+  @@index([warehouseId])
+}
+
+model InventoryAdjustmentItem {
+  id                String                @id @default(uuid()) @db.Uuid
+
+  adjustmentId      String                @db.Uuid
+  adjustment        InventoryAdjustment   @relation(fields: [adjustmentId], references: [id])
+
+  skuId             String                @db.Uuid
+  sku               SKU                   @relation(fields: [skuId], references: [id])
+
+  quantityBefore    Int
+  quantityAfter     Int
+  expectedVersion   Int
+
+  createdAt         DateTime              @default(now())
+
+  @@index([adjustmentId])
+  @@index([skuId])
+}
+
+// ============================================================
+// AUDIT
+// ============================================================
+
+enum MovementType {
+  RESERVE
+  RELEASE
+  INBOUND
+  OUTBOUND
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT
+}
+
+enum ReferenceType {
+  RESERVATION
+  SALES_ORDER
+  INBOUND
+  OUTBOUND
+  TRANSFER
+  INVENTORY_ADJUSTMENT
+}
+
+model InventoryMovement {
+  id              String          @id @default(uuid()) @db.Uuid
+
+  inventoryId     String          @db.Uuid
+  inventory       Inventory       @relation(fields: [inventoryId], references: [id])
+
+  movementType    MovementType
+  referenceType   ReferenceType
+  referenceId     String          @db.Uuid
+
+  onHandBefore    Int
+  onHandAfter     Int
+  reservedBefore  Int
+  reservedAfter   Int
+
+  note            String?
+
+  createdAt       DateTime        @default(now())
+
+  @@index([inventoryId, createdAt])
+  @@index([referenceType, referenceId])
+}
