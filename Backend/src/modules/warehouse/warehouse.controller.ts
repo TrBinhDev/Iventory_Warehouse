@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { HttpStatus } from "../../constants/httpStatus.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as warehouseService from "./warehouse.service.js";
-import type { ListWarehousesQuery } from "./warehouse.schema.js";
+import type { ListWarehousesQuery, WarehouseIdParam } from "./warehouse.schema.js";
 
 // Xử lý request tạo kho mới
 export async function createWarehouse(req: Request, res: Response): Promise<void> {
@@ -19,4 +19,11 @@ export async function listWarehouses(req: Request, res: Response): Promise<void>
     limit: query.limit,
     total,
   });
+}
+
+// Xử lý request xem chi tiết 1 kho
+export async function getWarehouseById(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as WarehouseIdParam;
+  const warehouse = await warehouseService.getWarehouseById(id);
+  sendSuccess(res, HttpStatus.OK, warehouse);
 }

@@ -18,3 +18,10 @@ export const listWarehousesQuerySchema = z.object({
 });
 
 export type ListWarehousesQuery = z.infer<typeof listWarehousesQuerySchema>;
+
+// Param :id dùng chung cho GET/PATCH /warehouses/:id
+export const warehouseIdParamSchema = z.object({
+  id: z.string().uuid("id không hợp lệ"),
+});
+
+export type WarehouseIdParam = z.infer<typeof warehouseIdParamSchema>;
