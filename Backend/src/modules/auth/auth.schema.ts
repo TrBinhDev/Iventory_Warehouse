@@ -43,3 +43,11 @@ export const forgotPasswordSchema = z.object({
 });
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+// Payload đặt lại mật khẩu bằng token từ link
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token không được để trống"),
+  newPassword: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

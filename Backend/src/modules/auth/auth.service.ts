@@ -271,3 +271,18 @@ export async function forgotPassword(email: string): Promise<void> {
     logger.error("Không gửi được email đặt lại mật khẩu", err);
   }
 }
+
+// Đặt lại mật khẩu bằng token (dùng 1 lần), destroy session hiện tại để bắt đăng nhập lại
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const key = `${RESET_PASSWORD_TOKEN_PREFIX}${token}`;
+  const userId = await redis.get(key);
+
+  if (!userId) {
+    throw new BadRequestError("Token không hợp lệ hoặc đã hết hạn", "RESET_TOKEN_INVALID");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await authRepository.updatePassword(userId, passwordHash);
+  await redis.del(key);
+  await destroySession(userId);
+}

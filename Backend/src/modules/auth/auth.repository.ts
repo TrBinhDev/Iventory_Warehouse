@@ -58,6 +58,15 @@ export function markEmailVerified(userId: string) {
   });
 }
 
+// Cập nhật mật khẩu mới (dùng cho reset-password và change-password)
+export function updatePassword(userId: string, passwordHash: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+    select: SAFE_USER_SELECT,
+  });
+}
+
 // Tạo tài khoản Customer tự đăng ký (role cố định, chưa gắn warehouse, chưa verify email)
 export function createCustomer(data: {
   email: string;

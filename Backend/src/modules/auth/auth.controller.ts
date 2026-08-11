@@ -86,3 +86,11 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     message: "Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi",
   });
 }
+
+// Xử lý request đặt lại mật khẩu bằng token từ link — không tự động đăng nhập, user tự login lại
+export async function resetPassword(req: Request, res: Response): Promise<void> {
+  await authService.resetPassword(req.body.token, req.body.newPassword);
+  sendSuccess(res, HttpStatus.OK, {
+    message: "Đặt lại mật khẩu thành công, vui lòng đăng nhập lại",
+  });
+}
