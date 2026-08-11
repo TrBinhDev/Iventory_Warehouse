@@ -67,3 +67,9 @@ export function createUser(data: {
     select: SAFE_USER_SELECT,
   });
 }
+
+// Sửa tài khoản (partial update) — key nào undefined thì Prisma tự bỏ qua, không ghi đè.
+// Dùng UncheckedUpdateInput để gán warehouseId trực tiếp (scalar FK) thay vì qua relation connect/disconnect.
+export function updateUser(id: string, data: Prisma.UserUncheckedUpdateInput) {
+  return prisma.user.update({ where: { id }, data, select: SAFE_USER_SELECT });
+}

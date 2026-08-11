@@ -1,8 +1,13 @@
 import type { Prisma, UserRole } from "@prisma/client";
 import { hashPassword } from "../../utils/hash.util.js";
-import { ConflictError, ForbiddenError, NotFoundError } from "../../errors/appError.js";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from "../../errors/appError.js";
 import * as userRepository from "./user.repository.js";
-import type { CreateUserInput, ListUsersQuery } from "./user.schema.js";
+import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from "./user.schema.js";
 
 interface Actor {
   id: string;
@@ -90,4 +95,58 @@ export async function getUserById(actor: Actor, id: string) {
   assertManagerCanAccess(actor, user);
 
   return user;
+}
+
+// Sửa tài khoản — Admin sửa mọi field/mọi user (trừ tự đổi role chính mình);
+// Manager chỉ sửa Staff cùng kho, không được đụng role/warehouseId
+export async function updateUser(actor: Actor, id: string, input: UpdateUserInput) {
+  const target = await userRepository.findByIdSafe(id);
+  if (!target) {
+    throw new NotFoundError("Không tìm thấy tài khoản", "USER_NOT_FOUND");
+  }
+
+  assertManagerCanAccess(actor, target);
+
+  if (actor.role === "WAREHOUSE_MANAGER" && (input.role !== undefined || input.warehouseId !== undefined)) {
+    throw new ForbiddenError("Manager không được sửa role/warehouseId", "FORBIDDEN_FIELD");
+  }
+
+  if (input.role !== undefined && actor.id === target.id) {
+    throw new ForbiddenError("Không thể tự đổi role của chính mình", "CANNOT_CHANGE_OWN_ROLE");
+  }
+
+  if (input.role !== undefined || input.warehouseId !== undefined) {
+    const resultingRole = input.role ?? target.role;
+    const resultingWarehouseId =
+      input.warehouseId !== undefined ? input.warehouseId : target.warehouseId;
+
+    const isConsistent =
+      resultingRole === "ADMIN"
+        ? resultingWarehouseId === null
+        : resultingWarehouseId !== null;
+
+    if (!isConsistent) {
+      throw new BadRequestError(
+        "warehouseId bắt buộc với Manager/Staff, không được có với Admin — cần gửi kèm warehouseId phù hợp khi đổi role",
+        "INVALID_ROLE_WAREHOUSE_COMBINATION"
+      );
+    }
+  }
+
+  if (input.email !== undefined && input.email !== target.email) {
+    const existing = await userRepository.findByEmail(input.email);
+    if (existing && existing.id !== target.id) {
+      throw new ConflictError("Email đã được sử dụng", "EMAIL_ALREADY_EXISTS");
+    }
+  }
+
+  return userRepository.updateUser(id, {
+    fullName: input.fullName,
+    phone: input.phone,
+    avatarUrl: input.avatarUrl,
+    email: input.email,
+    status: input.status,
+    role: input.role,
+    warehouseId: input.warehouseId,
+  });
 }

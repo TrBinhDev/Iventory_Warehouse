@@ -39,3 +39,16 @@ export const userIdParamSchema = z.object({
 });
 
 export type UserIdParam = z.infer<typeof userIdParamSchema>;
+
+// Payload sửa tài khoản (partial update) — role/warehouseId chỉ Admin được gửi (check ở service layer)
+export const updateUserSchema = z.object({
+  fullName: z.string().min(1, "Họ tên không được để trống").max(255).optional(),
+  phone: z.string().max(20).optional(),
+  avatarUrl: z.string().url("avatarUrl không hợp lệ").optional(),
+  email: z.string().email("Email không hợp lệ").optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "BLOCKED"]).optional(),
+  role: z.enum(["ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"]).optional(),
+  warehouseId: z.string().uuid("warehouseId không hợp lệ").nullable().optional(),
+});
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

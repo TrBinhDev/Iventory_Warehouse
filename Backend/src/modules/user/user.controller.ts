@@ -27,3 +27,10 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
   const user = await userService.getUserById(req.user!, id);
   sendSuccess(res, HttpStatus.OK, user);
 }
+
+// Xử lý request sửa tài khoản
+export async function updateUser(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as UserIdParam;
+  const user = await userService.updateUser(req.user!, id, req.body);
+  sendSuccess(res, HttpStatus.OK, user);
+}

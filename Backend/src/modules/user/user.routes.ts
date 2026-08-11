@@ -7,6 +7,7 @@ import {
   createUserSchema,
   listUsersQuerySchema,
   userIdParamSchema,
+  updateUserSchema,
 } from "./user.schema.js";
 import * as userController from "./user.controller.js";
 
@@ -34,6 +35,15 @@ router.get(
   authorize("ADMIN", "WAREHOUSE_MANAGER"),
   validate(userIdParamSchema, "params"),
   asyncHandler(userController.getUserById)
+);
+
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("ADMIN", "WAREHOUSE_MANAGER"),
+  validate(userIdParamSchema, "params"),
+  validate(updateUserSchema, "body"),
+  asyncHandler(userController.updateUser)
 );
 
 export { router as userRouter };
