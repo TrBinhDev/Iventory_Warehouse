@@ -34,6 +34,11 @@ export function findByIdSafe(id: string) {
   return prisma.user.findUnique({ where: { id }, select: SAFE_USER_SELECT });
 }
 
+// Tìm user theo id kèm passwordHash — dùng cho change-password (verify mật khẩu hiện tại)
+export function findByIdWithPassword(id: string) {
+  return prisma.user.findUnique({ where: { id } });
+}
+
 // Bỏ passwordHash khỏi User đầy đủ trước khi trả về client
 export function toSafeUser(user: User): SafeUser {
   const { passwordHash: _passwordHash, ...safe } = user;

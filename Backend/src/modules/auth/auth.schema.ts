@@ -51,3 +51,11 @@ export const resetPasswordSchema = z.object({
 });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+// Payload đổi mật khẩu khi đã đăng nhập
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Mật khẩu hiện tại không được để trống"),
+  newPassword: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
+});
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

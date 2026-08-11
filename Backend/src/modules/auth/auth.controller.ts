@@ -94,3 +94,16 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     message: "Đặt lại mật khẩu thành công, vui lòng đăng nhập lại",
   });
 }
+
+// Xử lý request đổi mật khẩu khi đã đăng nhập — destroy session, bắt đăng nhập lại bằng mật khẩu mới
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  await authService.changePassword(
+    req.user!.id,
+    req.body.currentPassword,
+    req.body.newPassword
+  );
+  res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, { path: "/auth" });
+  sendSuccess(res, HttpStatus.OK, {
+    message: "Đổi mật khẩu thành công, vui lòng đăng nhập lại",
+  });
+}

@@ -9,6 +9,7 @@ import {
   resendVerificationSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from "./auth.schema.js";
 import * as authController from "./auth.controller.js";
 
@@ -54,6 +55,13 @@ router.post(
   "/reset-password",
   validate(resetPasswordSchema, "body"),
   asyncHandler(authController.resetPassword)
+);
+
+router.post(
+  "/change-password",
+  authenticate,
+  validate(changePasswordSchema, "body"),
+  asyncHandler(authController.changePassword)
 );
 
 export { router as authRouter };

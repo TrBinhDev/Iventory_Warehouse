@@ -286,3 +286,24 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await redis.del(key);
   await destroySession(userId);
 }
+
+// Đổi mật khẩu khi đã đăng nhập: verify mật khẩu hiện tại, destroy session để bắt đăng nhập lại
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const user = await authRepository.findByIdWithPassword(userId);
+  if (!user) {
+    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+  }
+
+  const isMatch = await comparePassword(currentPassword, user.passwordHash);
+  if (!isMatch) {
+    throw new BadRequestError("Mật khẩu hiện tại không đúng", "INVALID_CURRENT_PASSWORD");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await authRepository.updatePassword(userId, passwordHash);
+  await destroySession(userId);
+}
