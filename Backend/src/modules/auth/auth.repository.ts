@@ -44,6 +44,15 @@ export function updateLastLogin(userId: string) {
   });
 }
 
+// Đánh dấu email đã được xác thực sau khi verify OTP thành công
+export function markEmailVerified(userId: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { isEmailVerified: true },
+    select: SAFE_USER_SELECT,
+  });
+}
+
 // Tạo tài khoản Customer tự đăng ký (role cố định, chưa gắn warehouse, chưa verify email)
 export function createCustomer(data: {
   email: string;

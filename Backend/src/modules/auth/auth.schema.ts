@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EMAIL_VERIFY_OTP_LENGTH } from "../../constants/token.js";
 
 // Payload đăng ký tài khoản Customer
 export const registerSchema = z.object({
@@ -17,3 +18,21 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// Payload verify email bằng mã OTP
+export const verifyEmailSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+  otp: z
+    .string()
+    .length(EMAIL_VERIFY_OTP_LENGTH, `Mã OTP phải có ${EMAIL_VERIFY_OTP_LENGTH} chữ số`)
+    .regex(/^\d+$/, "Mã OTP chỉ gồm chữ số"),
+});
+
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+// Payload gửi lại mã OTP xác thực email
+export const resendVerificationSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+});
+
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;

@@ -35,3 +35,15 @@ export async function login(req: Request, res: Response): Promise<void> {
   setRefreshTokenCookie(res, refreshToken);
   sendSuccess(res, HttpStatus.OK, { accessToken, user });
 }
+
+// Xử lý request xác thực email bằng mã OTP
+export async function verifyEmail(req: Request, res: Response): Promise<void> {
+  const user = await authService.verifyEmail(req.body);
+  sendSuccess(res, HttpStatus.OK, user);
+}
+
+// Xử lý request gửi lại mã OTP xác thực email
+export async function resendVerification(req: Request, res: Response): Promise<void> {
+  await authService.resendVerification(req.body);
+  sendSuccess(res, HttpStatus.OK, { message: "Đã gửi lại mã xác thực" });
+}

@@ -4,23 +4,21 @@ import { logger } from "../config/logger.js";
 
 const resend = new Resend(env.RESEND_API_KEY);
 
-// Gửi email xác thực tài khoản kèm link verify chứa token
+// Gửi email chứa mã OTP xác thực tài khoản
 export async function sendVerificationEmail(
   to: string,
-  token: string
+  otp: string
 ): Promise<void> {
-  const verifyUrl = `${env.CLIENT_APP_URL}/verify-email?token=${token}`;
-
   const { error } = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to,
-    subject: "Xác thực tài khoản",
-    html: `<p>Nhấn vào link sau để xác thực tài khoản của bạn:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p><p>Link có hiệu lực trong 24 giờ.</p>`,
+    subject: "Mã xác thực tài khoản",
+    html: `<p>Mã xác thực tài khoản của bạn là:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${otp}</p><p>Mã có hiệu lực trong 10 phút. Không chia sẻ mã này cho bất kỳ ai.</p>`,
   });
 
   if (error) {
-    logger.error("Gửi email xác thực thất bại", error);
-    throw new Error("Gửi email xác thực thất bại");
+    logger.error("Gửi email OTP xác thực thất bại", error);
+    throw new Error("Gửi email OTP xác thực thất bại");
   }
 }
 
