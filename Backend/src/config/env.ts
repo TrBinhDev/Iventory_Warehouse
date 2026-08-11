@@ -11,6 +11,10 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET không được để trống'),
   JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET không được để trống'),
   SECRET_KEY: z.string().min(1, 'SECRET_KEY không được để trống'),
+
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY không được để trống'),
+  RESEND_FROM_EMAIL: z.string().email('RESEND_FROM_EMAIL phải là email hợp lệ'),
+  CLIENT_APP_URL: z.string().url('CLIENT_APP_URL phải là URL hợp lệ'),
 });
 
 const parsed = envSchema.safeParse(process.env);
