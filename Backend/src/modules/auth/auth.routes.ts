@@ -23,6 +23,8 @@ router.post(
   asyncHandler(authController.login)
 );
 
+router.post("/refresh", asyncHandler(authController.refresh));
+
 router.post(
   "/verify-email",
   validate(verifyEmailSchema, "body"),

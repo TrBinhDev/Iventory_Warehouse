@@ -36,6 +36,24 @@ export async function login(req: Request, res: Response): Promise<void> {
   sendSuccess(res, HttpStatus.OK, { accessToken, user });
 }
 
+// Xử lý request refresh: đọc refresh token từ cookie, cấp cặp token mới, rotate cookie
+export async function refresh(req: Request, res: Response): Promise<void> {
+  const currentRefreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME] as
+    | string
+    | undefined;
+
+  const { accessToken, refreshToken, user } = await authService.refresh(
+    currentRefreshToken,
+    {
+      userAgent: req.headers["user-agent"],
+      ip: req.ip,
+    }
+  );
+
+  setRefreshTokenCookie(res, refreshToken);
+  sendSuccess(res, HttpStatus.OK, { accessToken, user });
+}
+
 // Xử lý request xác thực email bằng mã OTP
 export async function verifyEmail(req: Request, res: Response): Promise<void> {
   const user = await authService.verifyEmail(req.body);

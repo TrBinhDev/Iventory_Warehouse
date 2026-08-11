@@ -29,6 +29,11 @@ export function findByEmailSafe(email: string) {
   return prisma.user.findUnique({ where: { email }, select: SAFE_USER_SELECT });
 }
 
+// Tìm user theo id, ẩn passwordHash — dùng cho refresh/me (đã xác thực qua token, chỉ cần id)
+export function findByIdSafe(id: string) {
+  return prisma.user.findUnique({ where: { id }, select: SAFE_USER_SELECT });
+}
+
 // Bỏ passwordHash khỏi User đầy đủ trước khi trả về client
 export function toSafeUser(user: User): SafeUser {
   const { passwordHash: _passwordHash, ...safe } = user;

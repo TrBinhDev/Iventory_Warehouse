@@ -1,10 +1,15 @@
 import { randomInt } from "crypto";
+import jwt from "jsonwebtoken";
 import { redis } from "../../config/redis.js";
 import { logger } from "../../config/logger.js";
 import { hashPassword, comparePassword } from "../../utils/hash.util.js";
 import { sendVerificationEmail } from "../../utils/mailer.util.js";
-import { signAccessToken, signRefreshToken } from "../../utils/jwt.util.js";
-import { createSession } from "../../utils/session.util.js";
+import {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} from "../../utils/jwt.util.js";
+import { createSession, rotateSession, validateSession } from "../../utils/session.util.js";
 import {
   BadRequestError,
   ConflictError,
@@ -12,6 +17,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from "../../errors/appError.js";
+import { ErrorCode, ErrorMessage } from "../../constants/message.js";
 import {
   EMAIL_VERIFY_OTP_LENGTH,
   EMAIL_VERIFY_OTP_MAX_ATTEMPTS,
@@ -168,4 +174,56 @@ export async function login(input: LoginInput, meta: LoginMeta) {
   const updatedUser = await authRepository.updateLastLogin(user.id);
 
   return { accessToken, refreshToken, user: updatedUser };
+}
+
+// Cấp access+refresh token mới từ refresh token hợp lệ, rotate session (refresh token cũ hết hiệu lực ngay)
+export async function refresh(refreshToken: string | undefined, meta: LoginMeta) {
+  if (!refreshToken) {
+    throw new UnauthorizedError(ErrorMessage.UNAUTHORIZED, ErrorCode.UNAUTHORIZED);
+  }
+
+  let payload;
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      throw new UnauthorizedError(ErrorMessage.TOKEN_EXPIRED, ErrorCode.TOKEN_EXPIRED);
+    }
+    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+  }
+
+  const user = await authRepository.findByIdSafe(payload.sub);
+  if (!user) {
+    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+  }
+
+  if (user.status !== "ACTIVE") {
+    const isBlocked = user.status === "BLOCKED";
+    throw new ForbiddenError(
+      isBlocked ? "Tài khoản đã bị khoá" : "Tài khoản chưa được kích hoạt",
+      isBlocked ? "ACCOUNT_BLOCKED" : "ACCOUNT_INACTIVE"
+    );
+  }
+
+  const isSessionValid = await validateSession(user.id, refreshToken);
+  if (!isSessionValid) {
+    // Refresh token hợp lệ theo JWT nhưng session đã bị rotate/logout/xoá — bắt đăng nhập lại
+    throw new UnauthorizedError("Phiên đăng nhập đã hết hiệu lực, vui lòng đăng nhập lại", "SESSION_REVOKED");
+  }
+
+  const newAccessToken = signAccessToken({
+    sub: user.id,
+    role: user.role,
+    warehouseId: user.warehouseId,
+  });
+  const newRefreshToken = signRefreshToken({ sub: user.id });
+
+  await rotateSession(user.id, newRefreshToken, {
+    role: user.role,
+    warehouseId: user.warehouseId,
+    userAgent: meta.userAgent,
+    ip: meta.ip,
+  });
+
+  return { accessToken: newAccessToken, refreshToken: newRefreshToken, user };
 }
