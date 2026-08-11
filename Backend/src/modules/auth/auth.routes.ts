@@ -28,6 +28,8 @@ router.post("/refresh", asyncHandler(authController.refresh));
 
 router.post("/logout", authenticate, asyncHandler(authController.logout));
 
+router.get("/me", authenticate, asyncHandler(authController.me));
+
 router.post(
   "/verify-email",
   validate(verifyEmailSchema, "body"),

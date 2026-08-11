@@ -61,6 +61,12 @@ export async function logout(req: Request, res: Response): Promise<void> {
   sendSuccess(res, HttpStatus.OK, null);
 }
 
+// Xử lý request lấy thông tin tài khoản hiện tại
+export async function me(req: Request, res: Response): Promise<void> {
+  const user = await authService.getMe(req.user!.id);
+  sendSuccess(res, HttpStatus.OK, user);
+}
+
 // Xử lý request xác thực email bằng mã OTP
 export async function verifyEmail(req: Request, res: Response): Promise<void> {
   const user = await authService.verifyEmail(req.body);

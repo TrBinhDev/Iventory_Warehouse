@@ -237,3 +237,12 @@ export async function refresh(refreshToken: string | undefined, meta: LoginMeta)
 export async function logout(userId: string): Promise<void> {
   await destroySession(userId);
 }
+
+// Lấy thông tin tài khoản hiện tại từ id trong access token
+export async function getMe(userId: string) {
+  const user = await authRepository.findByIdSafe(userId);
+  if (!user) {
+    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+  }
+  return user;
+}
