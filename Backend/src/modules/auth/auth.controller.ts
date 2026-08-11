@@ -78,3 +78,11 @@ export async function resendVerification(req: Request, res: Response): Promise<v
   await authService.resendVerification(req.body);
   sendSuccess(res, HttpStatus.OK, { message: "Đã gửi lại mã xác thực" });
 }
+
+// Xử lý request quên mật khẩu — luôn trả response generic, không lộ email có tồn tại hay không
+export async function forgotPassword(req: Request, res: Response): Promise<void> {
+  await authService.forgotPassword(req.body.email);
+  sendSuccess(res, HttpStatus.OK, {
+    message: "Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi",
+  });
+}

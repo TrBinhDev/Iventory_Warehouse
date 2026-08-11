@@ -1,9 +1,9 @@
-import { randomInt } from "crypto";
+import { randomBytes, randomInt } from "crypto";
 import jwt from "jsonwebtoken";
 import { redis } from "../../config/redis.js";
 import { logger } from "../../config/logger.js";
 import { hashPassword, comparePassword } from "../../utils/hash.util.js";
-import { sendVerificationEmail } from "../../utils/mailer.util.js";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../../utils/mailer.util.js";
 import {
   signAccessToken,
   signRefreshToken,
@@ -28,6 +28,8 @@ import {
   EMAIL_VERIFY_OTP_MAX_ATTEMPTS,
   EMAIL_VERIFY_OTP_PREFIX,
   EMAIL_VERIFY_OTP_TTL_SECONDS,
+  RESET_PASSWORD_TOKEN_PREFIX,
+  RESET_PASSWORD_TOKEN_TTL_SECONDS,
 } from "../../constants/token.js";
 import * as authRepository from "./auth.repository.js";
 import type {
@@ -245,4 +247,27 @@ export async function getMe(userId: string) {
     throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
   }
   return user;
+}
+
+// Yêu cầu đặt lại mật khẩu: sinh token + gửi email nếu email tồn tại, im lặng bỏ qua nếu không
+// (controller luôn trả response generic giống nhau để chống dò email tồn tại)
+export async function forgotPassword(email: string): Promise<void> {
+  const user = await authRepository.findByEmailSafe(email);
+  if (!user) {
+    return;
+  }
+
+  const token = randomBytes(32).toString("hex");
+  await redis.set(
+    `${RESET_PASSWORD_TOKEN_PREFIX}${token}`,
+    user.id,
+    "EX",
+    RESET_PASSWORD_TOKEN_TTL_SECONDS
+  );
+
+  try {
+    await sendPasswordResetEmail(user.email, token);
+  } catch (err) {
+    logger.error("Không gửi được email đặt lại mật khẩu", err);
+  }
 }

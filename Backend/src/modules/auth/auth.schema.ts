@@ -36,3 +36,10 @@ export const resendVerificationSchema = z.object({
 });
 
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
+
+// Payload yêu cầu gửi link đặt lại mật khẩu
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;

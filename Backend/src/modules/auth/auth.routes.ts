@@ -7,6 +7,7 @@ import {
   loginSchema,
   verifyEmailSchema,
   resendVerificationSchema,
+  forgotPasswordSchema,
 } from "./auth.schema.js";
 import * as authController from "./auth.controller.js";
 
@@ -40,6 +41,12 @@ router.post(
   "/resend-verification",
   validate(resendVerificationSchema, "body"),
   asyncHandler(authController.resendVerification)
+);
+
+router.post(
+  "/forgot-password",
+  validate(forgotPasswordSchema, "body"),
+  asyncHandler(authController.forgotPassword)
 );
 
 export { router as authRouter };
