@@ -26,6 +26,9 @@ model InventoryMovement {
   inventoryId     String          @db.Uuid
   inventory       Inventory       @relation(fields: [inventoryId], references: [id])
 
+  createdByUserId String?         @db.Uuid
+  createdBy       User?           @relation(fields: [createdByUserId], references: [id])
+
   movementType    MovementType
 
   referenceType   ReferenceType
@@ -51,6 +54,7 @@ model InventoryMovement {
 
 ```text
 Inventory (1) ─────────────< InventoryMovement (N)
+User      (1) ─────────────< InventoryMovement (N)   // createdBy, nullable
 ```
 
 ## Note — các điểm quan trọng
@@ -74,3 +78,5 @@ Inventory (1) ─────────────< InventoryMovement (N)
 5. **Ghi log LUÔN nằm trong CÙNG transaction** với chính thao tác thay đổi `Inventory` (đã note xuyên suốt các module trước: Reservation, Inbound, Outbound, Transfer, Adjustment) — không ghi log sau khi COMMIT, để đảm bảo log và số liệu thực tế không bao giờ lệch nhau nếu transaction fail giữa chừng.
 
 6. **`@@index([referenceType, referenceId])`** — phục vụ query kiểu "xem toàn bộ biến động Inventory gây ra bởi đơn hàng X" (ngược từ business object → movement), còn `@@index([inventoryId, createdAt])` phục vụ query "lịch sử biến động của 1 SKU tại 1 kho theo thời gian" (thuận từ Inventory → log).
+
+7. **`createdByUserId` nullable** — hầu hết movement gắn với 1 user cụ thể (người tạo Inbound/Outbound/Transfer/Adjustment, hoặc customer tạo Reservation/SalesOrder), nhưng một số movement do **hệ thống tự động** tạo ra, không có user nào thao tác trực tiếp — điển hình là BullMQ job tự nhả `reserved` khi Reservation hết hạn (`movementType = RELEASE`). Những trường hợp đó `createdByUserId = null`.

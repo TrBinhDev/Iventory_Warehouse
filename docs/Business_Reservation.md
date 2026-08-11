@@ -11,6 +11,8 @@ enum ReservationStatus {
 model Reservation {
   id            String              @id @default(uuid()) @db.Uuid
 
+  code          String              @unique @db.VarChar(30)
+
   warehouseId   String              @db.Uuid
   warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
 
@@ -99,3 +101,5 @@ COMMIT → nhả lock
 8. **`ReservationItem` không có `updatedAt`** — snapshot bất biến, không sửa sau khi tạo. Muốn đổi số lượng thì hủy Reservation cũ, tạo mới.
 
 9. **`confirmedAt`/`cancelledAt`/`expiredAt`/`cancelReason`** — cần thiết vì `InventoryMovement` chỉ ghi log ở bước có chạm Inventory; các bước chuyển status không đụng Inventory (VD: `PENDING → CONFIRMED`) sẽ hoàn toàn mất dấu vết nếu thiếu field này. `expiredAt` tách riêng khỏi `cancelledAt` vì khác nguồn gốc: hệ thống tự động (BullMQ job/cron) vs người dùng chủ động hủy — quan trọng khi audit/debug.
+
+10. **`code`** — mã phiếu dễ đọc dùng để hiển thị cho khách/nhân viên (VD `RES-20260811-0001`), tách biệt với `id` (UUID dùng nội bộ cho FK). Sinh ở tầng service lúc tạo, `@unique` để DB chặn trùng nếu logic sinh code có bug; cách sinh cụ thể (sequence/timestamp-based...) quyết định lúc code module.

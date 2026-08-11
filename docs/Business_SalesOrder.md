@@ -13,6 +13,8 @@ enum SalesOrderStatus {
 model SalesOrder {
   id              String              @id @default(uuid()) @db.Uuid
 
+  code            String              @unique @db.VarChar(30)
+
   warehouseId     String              @db.Uuid
   warehouse       Warehouse           @relation(fields: [warehouseId], references: [id])
 
@@ -114,3 +116,5 @@ SKU         (1) ─────────────< SalesOrderItem (N)
 7. **Không có `shippingAddress`** — ngoài phạm vi project (tập trung concurrency/locking, không phải luồng giao vận).
 
 8. **`paidAt`/`confirmedAt`/`completedAt`/`cancelledAt`/`refundedAt`/`cancelReason`** — cùng nguyên tắc với Reservation: track đầy đủ mọi bước chuyển status, kể cả bước không đụng Inventory (VD: `PENDING → PAID` chỉ là xác nhận thanh toán, không chạm Inventory). Không có `expiredAt` vì `SalesOrder` không có status `EXPIRED` (Buy Now không có TTL, khác Reservation).
+
+9. **`code`** — mã đơn hàng dễ đọc (VD `SO-20260811-0001`), cùng nguyên tắc với `Reservation.code` — tách biệt `id` UUID, sinh ở service layer, `@unique` chặn trùng.

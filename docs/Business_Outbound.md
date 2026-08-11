@@ -18,6 +18,8 @@ enum OutboundReason {
 model Outbound {
   id              String          @id @default(uuid()) @db.Uuid
 
+  code            String          @unique @db.VarChar(30)
+
   warehouseId     String          @db.Uuid
   warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
 
@@ -118,3 +120,5 @@ SKU        (1) ─────────────< OutboundItem (N)
 6. **`reserved -= quantity` chỉ trừ đúng phần liên quan đến `salesOrderId` của chính Outbound này** — không phải trừ/xóa toàn bộ `reserved` của SKU đó (SKU có thể đang bị giữ chỗ bởi nhiều Reservation/SalesOrder khác cùng lúc, không liên quan đến phiếu Outbound đang xử lý). Số lượng trừ lấy từ `OutboundItem.quantity`, khớp với số đã được cộng vào `reserved` lúc tạo `SalesOrder`/`Reservation` tương ứng.
 
 7. **`createdByUserId`** — cùng nguyên tắc với `Inbound`, track nhân viên tạo phiếu, validate `createdBy.warehouseId === Outbound.warehouseId` ở service layer.
+
+8. **`code`** — mã phiếu xuất dễ đọc (VD `OUT-20260811-0001`), cùng nguyên tắc với `Reservation.code`.

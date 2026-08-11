@@ -12,6 +12,8 @@ enum TransferStatus {
 model Transfer {
   id                String          @id @default(uuid()) @db.Uuid
 
+  code              String          @unique @db.VarChar(30)
+
   fromWarehouseId   String          @db.Uuid
   fromWarehouse     Warehouse       @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
 
@@ -118,3 +120,5 @@ SKU       (1) ─────────────< TransferItem (N)
 7. **`quantityReceived` nullable** — vì chỉ có giá trị sau khi `RECEIVED`, lúc `SHIPPED` (hoặc `DRAFT`/`CONFIRMED`) vẫn là `null`.
 
 8. **`createdByUserId`** — track nhân viên tạo phiếu ở kho nguồn. Việc "ai xác nhận RECEIVED ở kho B" không track riêng trong schema hiện tại (chỉ có 1 `createdByUserId` cho cả phiếu) — nếu cần audit rõ ai xác nhận nhận hàng, có thể thêm `receivedByUserId` (nullable) sau, hiện tại giữ tối giản.
+
+9. **`code`** — mã phiếu chuyển kho dễ đọc (VD `TRF-20260811-0001`), cùng nguyên tắc với `Reservation.code`.

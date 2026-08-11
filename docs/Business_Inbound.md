@@ -16,6 +16,8 @@ enum InboundReason {
 model Inbound {
   id              String          @id @default(uuid()) @db.Uuid
 
+  code            String          @unique @db.VarChar(30)
+
   warehouseId     String          @db.Uuid
   warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
 
@@ -57,9 +59,12 @@ model InboundItem {
   skuId         String        @db.Uuid
   sku           SKU           @relation(fields: [skuId], references: [id])
 
-  quantity      Int
+  quantityOrdered   Int
+  quantityReceived  Int?
 
-  unitCost      Decimal       @db.Decimal(15, 2)
+  unitCost          Decimal       @db.Decimal(15, 2)
+
+  note              String?
 
   createdAt     DateTime      @default(now())
 
@@ -98,21 +103,29 @@ Về mặt Inventory, cả 2 nhánh xử lý **giống hệt nhau** ở bước 
 
 3. **`InboundItem.unitCost` là snapshot giá nhập tại thời điểm đó** — không lấy `SKU.cost` hiện tại, cùng nguyên tắc với `unitPrice` ở Reservation/SalesOrder.
 
+3b. **`quantity` tách thành `quantityOrdered` + `quantityReceived` (nullable)** — cùng pattern đã dùng ở `TransferItem.quantityShipped`/`quantityReceived`. `quantityOrdered` là số dự kiến nhập, nhập ngay lúc tạo phiếu (`DRAFT`/`CONFIRMED`); `quantityReceived` chỉ có giá trị sau khi chuyển `RECEIVED` — staff tại kho tự nhập số thực tế nhận được, có thể khác `quantityOrdered` nếu nhà cung cấp giao thiếu/dư. Chênh lệch giữa 2 số này chỉ ghi qua `note`, **không tự động tạo `InventoryAdjustment`** — cùng nguyên tắc với chênh lệch `quantityShipped` vs `quantityReceived` ở Transfer.
+
 4. **Luồng xử lý lúc chuyển status → `RECEIVED` (bước duy nhất chạm Inventory):**
 
    ```
    BEGIN transaction
+     → staff nhập quantityReceived thực tế cho từng InboundItem
+     → UPDATE InboundItem SET quantityReceived = ...
      SELECT * FROM Inventory WHERE warehouseId=X AND skuId IN (...)
        ORDER BY skuId ASC
        FOR UPDATE
      → với mỗi SKU trong InboundItem:
-         nếu CHƯA có row Inventory (SKU lần đầu nhập vào kho này) → INSERT mới (onHand = quantity)
-         nếu ĐÃ có row → UPDATE onHand += quantity, version += 1
+         nếu CHƯA có row Inventory (SKU lần đầu nhập vào kho này) → INSERT mới (onHand = quantityReceived)
+         nếu ĐÃ có row → UPDATE onHand += quantityReceived, version += 1
      → UPDATE Inbound.status = RECEIVED, receivedAt = now()
      → INSERT InventoryMovement (audit log, movementType = INBOUND)
    COMMIT
    ```
 
+   Cộng `onHand` theo **`quantityReceived`** (số thực nhận), không phải `quantityOrdered` (số dự kiến) — hàng thực tế về bao nhiêu thì tồn kho tăng đúng bấy nhiêu, kể cả khi khác số đặt ban đầu.
+
    Vẫn cần `FOR UPDATE` dù Inbound chỉ **cộng** kho (không có rủi ro oversell theo hướng ngược) — vì nếu 2 phiếu Inbound của cùng 1 SKU/Warehouse được `RECEIVED` đồng thời mà không lock, có thể xảy ra lost update (đọc `onHand` cũ, ghi đè thay vì cộng dồn đúng) nếu code lỡ dùng pattern đọc-rồi-ghi thay vì increment atomic.
 
 5. **Trường hợp SKU lần đầu nhập vào 1 Warehouse chưa từng có Inventory row** — cần upsert (insert nếu chưa tồn tại) thay vì luôn assume row đã có sẵn, khác với Reservation/SalesOrder/Outbound (luôn yêu cầu row đã tồn tại từ trước, nếu không có nghĩa là chưa từng nhập kho, không thể bán/xuất).
+
+6. **`code`** — mã phiếu nhập dễ đọc (VD `IN-20260811-0001`), cùng nguyên tắc với `Reservation.code`.

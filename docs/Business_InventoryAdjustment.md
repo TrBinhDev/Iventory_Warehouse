@@ -16,6 +16,8 @@ enum AdjustmentReason {
 model InventoryAdjustment {
   id              String                    @id @default(uuid()) @db.Uuid
 
+  code            String                    @unique @db.VarChar(30)
+
   warehouseId     String                    @db.Uuid
   warehouse       Warehouse                 @relation(fields: [warehouseId], references: [id])
 
@@ -96,3 +98,5 @@ SKU                  (1) ─────────────< InventoryAdjus
 6. **`reserved` KHÔNG bị Adjustment đụng vào** — chỉ set lại `onHand`, giữ nguyên `reserved` hiện tại (trừ trường hợp vi phạm CHECK constraint ở điểm 5 thì bị chặn từ đầu).
 
 7. **`InventoryAdjustmentItem` không có `updatedAt`** — cùng nguyên tắc snapshot bất biến như `ReservationItem`/`SalesOrderItem`, không sửa sau khi đã submit.
+
+8. **`code`** — mã phiếu điều chỉnh dễ đọc (VD `ADJ-20260811-0001`), cùng nguyên tắc với `Reservation.code`.
