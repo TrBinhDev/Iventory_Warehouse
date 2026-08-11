@@ -7,6 +7,7 @@ import {
   createWarehouseSchema,
   listWarehousesQuerySchema,
   warehouseIdParamSchema,
+  updateWarehouseSchema,
 } from "./warehouse.schema.js";
 import * as warehouseController from "./warehouse.controller.js";
 
@@ -30,6 +31,15 @@ router.get(
   "/:id",
   validate(warehouseIdParamSchema, "params"),
   asyncHandler(warehouseController.getWarehouseById)
+);
+
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(warehouseIdParamSchema, "params"),
+  validate(updateWarehouseSchema, "body"),
+  asyncHandler(warehouseController.updateWarehouse)
 );
 
 export { router as warehouseRouter };

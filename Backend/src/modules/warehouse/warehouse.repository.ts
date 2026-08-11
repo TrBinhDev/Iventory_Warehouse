@@ -11,6 +11,11 @@ export function findById(id: string) {
   return prisma.warehouse.findUnique({ where: { id } });
 }
 
+// Sửa kho (partial update)
+export function updateWarehouse(id: string, data: Prisma.WarehouseUpdateInput) {
+  return prisma.warehouse.update({ where: { id }, data });
+}
+
 // Lấy danh sách kho theo filter, có phân trang
 export function findMany(where: Prisma.WarehouseWhereInput, skip: number, take: number) {
   return prisma.warehouse.findMany({

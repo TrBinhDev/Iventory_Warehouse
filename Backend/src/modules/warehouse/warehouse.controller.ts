@@ -27,3 +27,10 @@ export async function getWarehouseById(req: Request, res: Response): Promise<voi
   const warehouse = await warehouseService.getWarehouseById(id);
   sendSuccess(res, HttpStatus.OK, warehouse);
 }
+
+// Xử lý request sửa kho
+export async function updateWarehouse(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as WarehouseIdParam;
+  const warehouse = await warehouseService.updateWarehouse(id, req.body);
+  sendSuccess(res, HttpStatus.OK, warehouse);
+}

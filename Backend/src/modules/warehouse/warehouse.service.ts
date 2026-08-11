@@ -1,7 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import * as warehouseRepository from "./warehouse.repository.js";
-import type { CreateWarehouseInput, ListWarehousesQuery } from "./warehouse.schema.js";
+import type {
+  CreateWarehouseInput,
+  ListWarehousesQuery,
+  UpdateWarehouseInput,
+} from "./warehouse.schema.js";
 
 // Tạo kho mới — check trùng code
 export async function createWarehouse(input: CreateWarehouseInput) {
@@ -37,4 +41,14 @@ export async function getWarehouseById(id: string) {
     throw new NotFoundError("Không tìm thấy kho", "WAREHOUSE_NOT_FOUND");
   }
   return warehouse;
+}
+
+// Sửa kho — Admin only, không sửa được code
+export async function updateWarehouse(id: string, input: UpdateWarehouseInput) {
+  const existing = await warehouseRepository.findById(id);
+  if (!existing) {
+    throw new NotFoundError("Không tìm thấy kho", "WAREHOUSE_NOT_FOUND");
+  }
+
+  return warehouseRepository.updateWarehouse(id, input);
 }

@@ -25,3 +25,13 @@ export const warehouseIdParamSchema = z.object({
 });
 
 export type WarehouseIdParam = z.infer<typeof warehouseIdParamSchema>;
+
+// Payload sửa kho (partial update) — không cho sửa code (định danh nghiệp vụ, giữ ổn định)
+export const updateWarehouseSchema = z.object({
+  name: z.string().min(1, "Tên kho không được để trống").max(255).optional(),
+  address: z.string().optional(),
+  phone: z.string().max(20).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
+export type UpdateWarehouseInput = z.infer<typeof updateWarehouseSchema>;
