@@ -54,6 +54,13 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   sendSuccess(res, HttpStatus.OK, { accessToken, user });
 }
 
+// Xử lý request đăng xuất: xoá session Redis + clear cookie
+export async function logout(req: Request, res: Response): Promise<void> {
+  await authService.logout(req.user!.id);
+  res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, { path: "/auth" });
+  sendSuccess(res, HttpStatus.OK, null);
+}
+
 // Xử lý request xác thực email bằng mã OTP
 export async function verifyEmail(req: Request, res: Response): Promise<void> {
   const user = await authService.verifyEmail(req.body);

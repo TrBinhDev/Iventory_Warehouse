@@ -9,7 +9,12 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from "../../utils/jwt.util.js";
-import { createSession, rotateSession, validateSession } from "../../utils/session.util.js";
+import {
+  createSession,
+  destroySession,
+  rotateSession,
+  validateSession,
+} from "../../utils/session.util.js";
 import {
   BadRequestError,
   ConflictError,
@@ -226,4 +231,9 @@ export async function refresh(refreshToken: string | undefined, meta: LoginMeta)
   });
 
   return { accessToken: newAccessToken, refreshToken: newRefreshToken, user };
+}
+
+// Đăng xuất: xoá session Redis của user hiện tại (access token đã xác thực là đủ, không cần refresh token)
+export async function logout(userId: string): Promise<void> {
+  await destroySession(userId);
 }

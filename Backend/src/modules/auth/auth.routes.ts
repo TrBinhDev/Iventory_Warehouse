@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { validate } from "../../middlewares/validate.js";
+import { authenticate } from "../../middlewares/authenticate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import {
   registerSchema,
@@ -24,6 +25,8 @@ router.post(
 );
 
 router.post("/refresh", asyncHandler(authController.refresh));
+
+router.post("/logout", authenticate, asyncHandler(authController.logout));
 
 router.post(
   "/verify-email",
