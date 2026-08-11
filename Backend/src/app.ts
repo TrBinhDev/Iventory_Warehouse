@@ -4,6 +4,7 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { notFoundHandler } from "./middlewares/notFoundHandler.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
 
 const app = express();
 
@@ -16,7 +17,7 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-// TODO: mount module routes tại đây khi có
+app.use("/auth", authRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
