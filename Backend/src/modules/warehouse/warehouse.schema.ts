@@ -9,3 +9,12 @@ export const createWarehouseSchema = z.object({
 });
 
 export type CreateWarehouseInput = z.infer<typeof createWarehouseSchema>;
+
+// Query params cho danh sách kho (phân trang + filter status)
+export const listWarehousesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
+export type ListWarehousesQuery = z.infer<typeof listWarehousesQuerySchema>;

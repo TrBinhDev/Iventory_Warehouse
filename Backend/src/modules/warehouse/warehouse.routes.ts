@@ -3,7 +3,7 @@ import { authenticate } from "../../middlewares/authenticate.js";
 import { authorize } from "../../middlewares/authorize.js";
 import { validate } from "../../middlewares/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { createWarehouseSchema } from "./warehouse.schema.js";
+import { createWarehouseSchema, listWarehousesQuerySchema } from "./warehouse.schema.js";
 import * as warehouseController from "./warehouse.controller.js";
 
 const router = Router();
@@ -14,6 +14,12 @@ router.post(
   authorize("ADMIN"),
   validate(createWarehouseSchema, "body"),
   asyncHandler(warehouseController.createWarehouse)
+);
+
+router.get(
+  "/",
+  validate(listWarehousesQuerySchema, "query"),
+  asyncHandler(warehouseController.listWarehouses)
 );
 
 export { router as warehouseRouter };
