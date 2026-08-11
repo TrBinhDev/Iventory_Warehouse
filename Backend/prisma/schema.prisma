@@ -3,8 +3,8 @@ generator client {
 }
 
 generator dbml {
-  provider   = "prisma-dbml-generator"
-  output     = "../../docs"
+  provider = "prisma-dbml-generator"
+  output   = "../../docs"
   outputName = "ERD.dbml"
 }
 
@@ -52,6 +52,7 @@ model User {
   createdOutbounds         Outbound[]
   createdTransfers         Transfer[]
   createdAdjustments       InventoryAdjustment[]
+  inventoryMovements       InventoryMovement[]
 
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
@@ -76,7 +77,7 @@ model Category {
   name        String          @db.VarChar(255)
   status      CategoryStatus  @default(ACTIVE)
 
-  products    Product[]
+  products    ProductCategory[]
 
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -147,9 +148,6 @@ enum ProductStatus {
 model Product {
   id          String          @id @default(uuid()) @db.Uuid
 
-  categoryId  String?         @db.Uuid
-  category    Category?       @relation(fields: [categoryId], references: [id])
-
   code        String          @unique @db.VarChar(50)
   name        String          @db.VarChar(255)
   description String?
@@ -157,13 +155,26 @@ model Product {
   images      String[]
   status      ProductStatus   @default(ACTIVE)
 
+  categories  ProductCategory[]
   skus        SKU[]
 
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  @@index([categoryId])
   @@index([status])
+}
+
+model ProductCategory {
+  productId   String    @db.Uuid
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  categoryId  String    @db.Uuid
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
 }
 
 enum SKUStatus {
@@ -240,6 +251,8 @@ enum ReservationStatus {
 model Reservation {
   id            String              @id @default(uuid()) @db.Uuid
 
+  code          String              @unique @db.VarChar(30)
+
   warehouseId   String              @db.Uuid
   warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
 
@@ -299,6 +312,8 @@ enum SalesOrderStatus {
 
 model SalesOrder {
   id              String              @id @default(uuid()) @db.Uuid
+
+  code            String              @unique @db.VarChar(30)
 
   warehouseId     String              @db.Uuid
   warehouse       Warehouse           @relation(fields: [warehouseId], references: [id])
@@ -369,6 +384,8 @@ enum InboundReason {
 model Inbound {
   id              String          @id @default(uuid()) @db.Uuid
 
+  code            String          @unique @db.VarChar(30)
+
   warehouseId     String          @db.Uuid
   warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
 
@@ -409,8 +426,10 @@ model InboundItem {
   skuId         String        @db.Uuid
   sku           SKU           @relation(fields: [skuId], references: [id])
 
-  quantity      Int
-  unitCost      Decimal       @db.Decimal(15, 2)
+  quantityOrdered   Int
+  quantityReceived  Int?
+  unitCost          Decimal       @db.Decimal(15, 2)
+  note              String?
 
   createdAt     DateTime      @default(now())
 
@@ -438,6 +457,8 @@ enum OutboundReason {
 
 model Outbound {
   id              String          @id @default(uuid()) @db.Uuid
+
+  code            String          @unique @db.VarChar(30)
 
   warehouseId     String          @db.Uuid
   warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
@@ -503,6 +524,8 @@ enum TransferStatus {
 model Transfer {
   id                String          @id @default(uuid()) @db.Uuid
 
+  code              String          @unique @db.VarChar(30)
+
   fromWarehouseId   String          @db.Uuid
   fromWarehouse     Warehouse       @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
 
@@ -566,6 +589,8 @@ enum AdjustmentReason {
 
 model InventoryAdjustment {
   id              String                    @id @default(uuid()) @db.Uuid
+
+  code            String                    @unique @db.VarChar(30)
 
   warehouseId     String                    @db.Uuid
   warehouse       Warehouse                 @relation(fields: [warehouseId], references: [id])
@@ -634,6 +659,9 @@ model InventoryMovement {
 
   inventoryId     String          @db.Uuid
   inventory       Inventory       @relation(fields: [inventoryId], references: [id])
+
+  createdByUserId String?         @db.Uuid
+  createdBy       User?           @relation(fields: [createdByUserId], references: [id])
 
   movementType    MovementType
   referenceType   ReferenceType

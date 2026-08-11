@@ -21,6 +21,7 @@ Table User {
   createdOutbounds Outbound [not null]
   createdTransfers Transfer [not null]
   createdAdjustments InventoryAdjustment [not null]
+  inventoryMovements InventoryMovement [not null]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
 }
@@ -30,7 +31,7 @@ Table Category {
   code String [unique, not null]
   name String [not null]
   status CategoryStatus [not null, default: 'ACTIVE']
-  products Product [not null]
+  products ProductCategory [not null]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
 }
@@ -73,17 +74,28 @@ Table Supplier {
 
 Table Product {
   id String [pk]
-  categoryId String
-  category Category
   code String [unique, not null]
   name String [not null]
   description String
   unit String [not null]
   images String[] [not null]
   status ProductStatus [not null, default: 'ACTIVE']
+  categories ProductCategory [not null]
   skus SKU [not null]
   createdAt DateTime [default: `now()`, not null]
   updatedAt DateTime [not null]
+}
+
+Table ProductCategory {
+  productId String [not null]
+  product Product [not null]
+  categoryId String [not null]
+  category Category [not null]
+  createdAt DateTime [default: `now()`, not null]
+
+  indexes {
+    (productId, categoryId) [pk]
+  }
 }
 
 Table SKU {
@@ -128,6 +140,7 @@ Table Inventory {
 
 Table Reservation {
   id String [pk]
+  code String [unique, not null]
   warehouseId String [not null]
   warehouse Warehouse [not null]
   customerId String [not null]
@@ -157,6 +170,7 @@ Table ReservationItem {
 
 Table SalesOrder {
   id String [pk]
+  code String [unique, not null]
   warehouseId String [not null]
   warehouse Warehouse [not null]
   customerId String [not null]
@@ -191,6 +205,7 @@ Table SalesOrderItem {
 
 Table Inbound {
   id String [pk]
+  code String [unique, not null]
   warehouseId String [not null]
   warehouse Warehouse [not null]
   reason InboundReason [not null, default: 'FROM_SUPPLIER']
@@ -216,13 +231,16 @@ Table InboundItem {
   inbound Inbound [not null]
   skuId String [not null]
   sku SKU [not null]
-  quantity Int [not null]
+  quantityOrdered Int [not null]
+  quantityReceived Int
   unitCost Decimal [not null]
+  note String
   createdAt DateTime [default: `now()`, not null]
 }
 
 Table Outbound {
   id String [pk]
+  code String [unique, not null]
   warehouseId String [not null]
   warehouse Warehouse [not null]
   reason OutboundReason [not null, default: 'SALES_ORDER']
@@ -255,6 +273,7 @@ Table OutboundItem {
 
 Table Transfer {
   id String [pk]
+  code String [unique, not null]
   fromWarehouseId String [not null]
   fromWarehouse Warehouse [not null]
   toWarehouseId String [not null]
@@ -286,6 +305,7 @@ Table TransferItem {
 
 Table InventoryAdjustment {
   id String [pk]
+  code String [unique, not null]
   warehouseId String [not null]
   warehouse Warehouse [not null]
   createdByUserId String [not null]
@@ -315,6 +335,8 @@ Table InventoryMovement {
   id String [pk]
   inventoryId String [not null]
   inventory Inventory [not null]
+  createdByUserId String
+  createdBy User
   movementType MovementType [not null]
   referenceType ReferenceType [not null]
   referenceId String [not null]
@@ -447,7 +469,9 @@ Enum ReferenceType {
 
 Ref: User.warehouseId > Warehouse.id
 
-Ref: Product.categoryId > Category.id
+Ref: ProductCategory.productId > Product.id [delete: Cascade]
+
+Ref: ProductCategory.categoryId > Category.id [delete: Cascade]
 
 Ref: SKU.productId > Product.id
 
@@ -516,3 +540,5 @@ Ref: InventoryAdjustmentItem.adjustmentId > InventoryAdjustment.id
 Ref: InventoryAdjustmentItem.skuId > SKU.id
 
 Ref: InventoryMovement.inventoryId > Inventory.id
+
+Ref: InventoryMovement.createdByUserId > User.id

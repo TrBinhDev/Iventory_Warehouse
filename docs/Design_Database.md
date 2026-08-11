@@ -1,4 +1,4 @@
-# Actor 
+# Actor
 
 Admin: Quản lý hệ thống
 Warehouse Manager: Quản lý kho
@@ -20,6 +20,8 @@ Supplier // Thông tin nhà cung cấp phục vụ nhập kho.
 Category // Loại sản phẩm
 
 Product // Thông tin chung của sản phẩm.
+
+ProductCategory // Bảng trung gian, 1 Product thuộc nhiều Category và ngược lại.
 
 SKU // Biến thể của Product (mã SKU, giá, thuộc tính...).
 
