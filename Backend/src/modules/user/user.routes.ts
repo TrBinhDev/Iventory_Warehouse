@@ -3,7 +3,11 @@ import { authenticate } from "../../middlewares/authenticate.js";
 import { authorize } from "../../middlewares/authorize.js";
 import { validate } from "../../middlewares/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { createUserSchema, listUsersQuerySchema } from "./user.schema.js";
+import {
+  createUserSchema,
+  listUsersQuerySchema,
+  userIdParamSchema,
+} from "./user.schema.js";
 import * as userController from "./user.controller.js";
 
 const router = Router();
@@ -22,6 +26,14 @@ router.get(
   authorize("ADMIN", "WAREHOUSE_MANAGER"),
   validate(listUsersQuerySchema, "query"),
   asyncHandler(userController.listUsers)
+);
+
+router.get(
+  "/:id",
+  authenticate,
+  authorize("ADMIN", "WAREHOUSE_MANAGER"),
+  validate(userIdParamSchema, "params"),
+  asyncHandler(userController.getUserById)
 );
 
 export { router as userRouter };

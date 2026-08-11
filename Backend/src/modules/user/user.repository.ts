@@ -24,6 +24,11 @@ export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } });
 }
 
+// Tìm user theo id, ẩn passwordHash
+export function findByIdSafe(id: string) {
+  return prisma.user.findUnique({ where: { id }, select: SAFE_USER_SELECT });
+}
+
 // Lấy danh sách tài khoản theo filter, có phân trang
 export function findMany(where: Prisma.UserWhereInput, skip: number, take: number) {
   return prisma.user.findMany({

@@ -1,6 +1,6 @@
 import type { Prisma, UserRole } from "@prisma/client";
 import { hashPassword } from "../../utils/hash.util.js";
-import { ConflictError, ForbiddenError } from "../../errors/appError.js";
+import { ConflictError, ForbiddenError, NotFoundError } from "../../errors/appError.js";
 import * as userRepository from "./user.repository.js";
 import type { CreateUserInput, ListUsersQuery } from "./user.schema.js";
 
@@ -67,4 +67,27 @@ export async function listUsers(actor: Actor, query: ListUsersQuery) {
   ]);
 
   return { items, total };
+}
+
+// Check Manager chỉ được đụng vào Staff cùng warehouse — throw NotFound (không phải Forbidden) để không lộ
+// sự tồn tại của tài khoản ngoài phạm vi cho Manager biết
+function assertManagerCanAccess(actor: Actor, target: { role: UserRole; warehouseId: string | null }): void {
+  if (actor.role !== "WAREHOUSE_MANAGER") {
+    return;
+  }
+  if (target.role !== "WAREHOUSE_STAFF" || target.warehouseId !== actor.warehouseId) {
+    throw new NotFoundError("Không tìm thấy tài khoản", "USER_NOT_FOUND");
+  }
+}
+
+// Xem chi tiết 1 tài khoản — Manager chỉ xem được Staff cùng kho
+export async function getUserById(actor: Actor, id: string) {
+  const user = await userRepository.findByIdSafe(id);
+  if (!user) {
+    throw new NotFoundError("Không tìm thấy tài khoản", "USER_NOT_FOUND");
+  }
+
+  assertManagerCanAccess(actor, user);
+
+  return user;
 }

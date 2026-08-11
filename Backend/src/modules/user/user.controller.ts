@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { HttpStatus } from "../../constants/httpStatus.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as userService from "./user.service.js";
-import type { ListUsersQuery } from "./user.schema.js";
+import type { ListUsersQuery, UserIdParam } from "./user.schema.js";
 
 // Xử lý request tạo tài khoản Admin/Manager/Staff
 export async function createUser(req: Request, res: Response): Promise<void> {
@@ -19,4 +19,11 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
     limit: query.limit,
     total,
   });
+}
+
+// Xử lý request xem chi tiết 1 tài khoản
+export async function getUserById(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as UserIdParam;
+  const user = await userService.getUserById(req.user!, id);
+  sendSuccess(res, HttpStatus.OK, user);
 }

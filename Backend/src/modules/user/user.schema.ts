@@ -32,3 +32,10 @@ export const listUsersQuerySchema = z.object({
 });
 
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
+
+// Param :id dùng chung cho GET/PATCH /users/:id
+export const userIdParamSchema = z.object({
+  id: z.string().uuid("id không hợp lệ"),
+});
+
+export type UserIdParam = z.infer<typeof userIdParamSchema>;
