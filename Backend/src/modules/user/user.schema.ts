@@ -22,3 +22,13 @@ export const createUserSchema = z
   );
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+// Query params cho danh sách tài khoản (phân trang + filter)
+export const listUsersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  role: z.enum(["ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF", "CUSTOMER"]).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "BLOCKED"]).optional(),
+});
+
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;

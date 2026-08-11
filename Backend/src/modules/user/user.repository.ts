@@ -24,6 +24,22 @@ export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } });
 }
 
+// Lấy danh sách tài khoản theo filter, có phân trang
+export function findMany(where: Prisma.UserWhereInput, skip: number, take: number) {
+  return prisma.user.findMany({
+    where,
+    select: SAFE_USER_SELECT,
+    skip,
+    take,
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+// Đếm tổng số tài khoản khớp filter — dùng cho meta phân trang
+export function count(where: Prisma.UserWhereInput) {
+  return prisma.user.count({ where });
+}
+
 // Tạo tài khoản Admin/Manager/Staff — isEmailVerified=true ngay (Admin/Manager tự chịu trách nhiệm email đúng)
 export function createUser(data: {
   fullName: string;
