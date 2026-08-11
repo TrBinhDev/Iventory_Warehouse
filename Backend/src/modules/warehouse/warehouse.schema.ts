@@ -26,8 +26,9 @@ export const warehouseIdParamSchema = z.object({
 
 export type WarehouseIdParam = z.infer<typeof warehouseIdParamSchema>;
 
-// Payload sửa kho (partial update) — không cho sửa code (định danh nghiệp vụ, giữ ổn định)
+// Payload sửa kho (partial update) — code sửa được (chỉ FK dùng id, code chỉ là field hiển thị, check trùng khi đổi)
 export const updateWarehouseSchema = z.object({
+  code: z.string().min(1, "Mã kho không được để trống").max(50, "Mã kho tối đa 50 ký tự").optional(),
   name: z.string().min(1, "Tên kho không được để trống").max(255).optional(),
   address: z.string().optional(),
   phone: z.string().max(20).optional(),

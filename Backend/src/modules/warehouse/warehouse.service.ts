@@ -43,11 +43,18 @@ export async function getWarehouseById(id: string) {
   return warehouse;
 }
 
-// Sửa kho — Admin only, không sửa được code
+// Sửa kho — Admin only, đổi code thì check trùng (FK thật dùng id nên đổi code không phá liên kết dữ liệu)
 export async function updateWarehouse(id: string, input: UpdateWarehouseInput) {
   const existing = await warehouseRepository.findById(id);
   if (!existing) {
     throw new NotFoundError("Không tìm thấy kho", "WAREHOUSE_NOT_FOUND");
+  }
+
+  if (input.code !== undefined && input.code !== existing.code) {
+    const duplicated = await warehouseRepository.findByCode(input.code);
+    if (duplicated && duplicated.id !== id) {
+      throw new ConflictError("Mã kho đã tồn tại", "WAREHOUSE_CODE_ALREADY_EXISTS");
+    }
   }
 
   return warehouseRepository.updateWarehouse(id, input);
