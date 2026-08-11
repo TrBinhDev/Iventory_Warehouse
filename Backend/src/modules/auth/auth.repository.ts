@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, User } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
 
 // Các field an toàn để trả về client — luôn loại bỏ passwordHash
@@ -27,6 +27,21 @@ export function findByEmailWithPassword(email: string) {
 // Tìm user theo email, ẩn passwordHash — dùng khi chỉ cần check tồn tại/hiển thị
 export function findByEmailSafe(email: string) {
   return prisma.user.findUnique({ where: { email }, select: SAFE_USER_SELECT });
+}
+
+// Bỏ passwordHash khỏi User đầy đủ trước khi trả về client
+export function toSafeUser(user: User): SafeUser {
+  const { passwordHash: _passwordHash, ...safe } = user;
+  return safe;
+}
+
+// Ghi nhận thời điểm đăng nhập gần nhất
+export function updateLastLogin(userId: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { lastLoginAt: new Date() },
+    select: SAFE_USER_SELECT,
+  });
 }
 
 // Tạo tài khoản Customer tự đăng ký (role cố định, chưa gắn warehouse, chưa verify email)

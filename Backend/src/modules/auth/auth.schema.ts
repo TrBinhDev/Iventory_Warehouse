@@ -9,3 +9,11 @@ export const registerSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+
+// Payload đăng nhập — dùng chung cho mọi role
+export const loginSchema = z.object({
+  email: z.string().email("Email không hợp lệ"),
+  password: z.string().min(1, "Mật khẩu không được để trống"),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
