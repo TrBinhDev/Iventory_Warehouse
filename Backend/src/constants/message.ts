@@ -79,4 +79,12 @@ export const Message = {
       message: "Mã nhà cung cấp đã tồn tại",
     },
   },
+
+  CATEGORY: {
+    NOT_FOUND: { code: "CATEGORY_NOT_FOUND", message: "Không tìm thấy loại sản phẩm" },
+    CODE_ALREADY_EXISTS: {
+      code: "CATEGORY_CODE_ALREADY_EXISTS",
+      message: "Mã loại sản phẩm đã tồn tại",
+    },
+  },
 } as const;
