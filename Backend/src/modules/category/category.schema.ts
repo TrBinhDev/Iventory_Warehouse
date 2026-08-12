@@ -16,3 +16,10 @@ export const listCategoriesQuerySchema = z.object({
 });
 
 export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>;
+
+// Param :id dùng chung cho GET/PATCH /categories/:id
+export const categoryIdParamSchema = z.object({
+  id: z.string().uuid("id không hợp lệ"),
+});
+
+export type CategoryIdParam = z.infer<typeof categoryIdParamSchema>;

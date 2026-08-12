@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { ConflictError } from "../../errors/appError.js";
+import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import * as categoryRepository from "./category.repository.js";
 import type { CreateCategoryInput, ListCategoriesQuery } from "./category.schema.js";
@@ -32,4 +32,13 @@ export async function listCategories(query: ListCategoriesQuery) {
   ]);
 
   return { items, total };
+}
+
+// Xem chi tiết 1 category — public
+export async function getCategoryById(id: string) {
+  const category = await categoryRepository.findById(id);
+  if (!category) {
+    throw new NotFoundError(Message.CATEGORY.NOT_FOUND.message, Message.CATEGORY.NOT_FOUND.code);
+  }
+  return category;
 }

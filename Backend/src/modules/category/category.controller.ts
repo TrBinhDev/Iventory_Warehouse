@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { HttpStatus } from "../../constants/httpStatus.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as categoryService from "./category.service.js";
-import type { ListCategoriesQuery } from "./category.schema.js";
+import type { ListCategoriesQuery, CategoryIdParam } from "./category.schema.js";
 
 // Xử lý request tạo loại sản phẩm mới
 export async function createCategory(req: Request, res: Response): Promise<void> {
@@ -19,4 +19,11 @@ export async function listCategories(req: Request, res: Response): Promise<void>
     limit: query.limit,
     total,
   });
+}
+
+// Xử lý request xem chi tiết 1 category
+export async function getCategoryById(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as CategoryIdParam;
+  const category = await categoryService.getCategoryById(id);
+  sendSuccess(res, HttpStatus.OK, category);
 }

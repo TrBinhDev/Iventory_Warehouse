@@ -3,7 +3,11 @@ import { authenticate } from "../../middlewares/authenticate.js";
 import { authorize } from "../../middlewares/authorize.js";
 import { validate } from "../../middlewares/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { createCategorySchema, listCategoriesQuerySchema } from "./category.schema.js";
+import {
+  createCategorySchema,
+  listCategoriesQuerySchema,
+  categoryIdParamSchema,
+} from "./category.schema.js";
 import * as categoryController from "./category.controller.js";
 
 const router = Router();
@@ -20,6 +24,12 @@ router.get(
   "/",
   validate(listCategoriesQuerySchema, "query"),
   asyncHandler(categoryController.listCategories)
+);
+
+router.get(
+  "/:id",
+  validate(categoryIdParamSchema, "params"),
+  asyncHandler(categoryController.getCategoryById)
 );
 
 export { router as categoryRouter };

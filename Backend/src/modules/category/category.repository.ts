@@ -6,6 +6,11 @@ export function findByCode(code: string) {
   return prisma.category.findUnique({ where: { code } });
 }
 
+// Tìm category theo id
+export function findById(id: string) {
+  return prisma.category.findUnique({ where: { id } });
+}
+
 // Lấy danh sách category theo filter, có phân trang
 export function findMany(where: Prisma.CategoryWhereInput, skip: number, take: number) {
   return prisma.category.findMany({
