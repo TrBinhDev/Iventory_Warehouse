@@ -7,6 +7,7 @@ import {
   createCategorySchema,
   listCategoriesQuerySchema,
   categoryIdParamSchema,
+  updateCategorySchema,
 } from "./category.schema.js";
 import * as categoryController from "./category.controller.js";
 
@@ -30,6 +31,15 @@ router.get(
   "/:id",
   validate(categoryIdParamSchema, "params"),
   asyncHandler(categoryController.getCategoryById)
+);
+
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(categoryIdParamSchema, "params"),
+  validate(updateCategorySchema, "body"),
+  asyncHandler(categoryController.updateCategory)
 );
 
 export { router as categoryRouter };

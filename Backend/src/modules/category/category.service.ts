@@ -2,7 +2,11 @@ import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import * as categoryRepository from "./category.repository.js";
-import type { CreateCategoryInput, ListCategoriesQuery } from "./category.schema.js";
+import type {
+  CreateCategoryInput,
+  ListCategoriesQuery,
+  UpdateCategoryInput,
+} from "./category.schema.js";
 
 // Tạo loại sản phẩm mới — check trùng code
 export async function createCategory(input: CreateCategoryInput) {
@@ -41,4 +45,24 @@ export async function getCategoryById(id: string) {
     throw new NotFoundError(Message.CATEGORY.NOT_FOUND.message, Message.CATEGORY.NOT_FOUND.code);
   }
   return category;
+}
+
+// Sửa category — Admin only, đổi code thì check trùng (FK thật dùng id nên đổi code không phá liên kết dữ liệu)
+export async function updateCategory(id: string, input: UpdateCategoryInput) {
+  const existing = await categoryRepository.findById(id);
+  if (!existing) {
+    throw new NotFoundError(Message.CATEGORY.NOT_FOUND.message, Message.CATEGORY.NOT_FOUND.code);
+  }
+
+  if (input.code !== undefined && input.code !== existing.code) {
+    const duplicated = await categoryRepository.findByCode(input.code);
+    if (duplicated && duplicated.id !== id) {
+      throw new ConflictError(
+        Message.CATEGORY.CODE_ALREADY_EXISTS.message,
+        Message.CATEGORY.CODE_ALREADY_EXISTS.code
+      );
+    }
+  }
+
+  return categoryRepository.updateCategory(id, input);
 }

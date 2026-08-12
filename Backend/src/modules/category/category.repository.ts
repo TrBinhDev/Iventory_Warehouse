@@ -11,6 +11,11 @@ export function findById(id: string) {
   return prisma.category.findUnique({ where: { id } });
 }
 
+// Sửa category (partial update)
+export function updateCategory(id: string, data: Prisma.CategoryUpdateInput) {
+  return prisma.category.update({ where: { id }, data });
+}
+
 // Lấy danh sách category theo filter, có phân trang
 export function findMany(where: Prisma.CategoryWhereInput, skip: number, take: number) {
   return prisma.category.findMany({

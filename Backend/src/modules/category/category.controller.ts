@@ -27,3 +27,10 @@ export async function getCategoryById(req: Request, res: Response): Promise<void
   const category = await categoryService.getCategoryById(id);
   sendSuccess(res, HttpStatus.OK, category);
 }
+
+// Xử lý request sửa category
+export async function updateCategory(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as CategoryIdParam;
+  const category = await categoryService.updateCategory(id, req.body);
+  sendSuccess(res, HttpStatus.OK, category);
+}
