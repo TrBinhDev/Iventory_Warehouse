@@ -76,6 +76,11 @@ export function findSkusByProductId(productId: string) {
   });
 }
 
+// Tìm SKU theo id — dùng cho xem chi tiết + validate thuộc đúng product
+export function findSkuById(id: string) {
+  return prisma.sKU.findUnique({ where: { id } });
+}
+
 // Tìm SKU theo skuCode — dùng để check trùng lúc tạo
 export function findSkuByCode(skuCode: string) {
   return prisma.sKU.findUnique({ where: { skuCode } });

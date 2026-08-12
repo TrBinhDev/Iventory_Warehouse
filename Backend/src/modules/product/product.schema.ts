@@ -62,3 +62,11 @@ export const createSkuSchema = z.object({
 });
 
 export type CreateSkuInput = z.infer<typeof createSkuSchema>;
+
+// Param :productId + :skuId dùng cho GET/PATCH chi tiết 1 SKU
+export const productSkuParamSchema = z.object({
+  productId: z.string().uuid("productId không hợp lệ"),
+  skuId: z.string().uuid("skuId không hợp lệ"),
+});
+
+export type ProductSkuParam = z.infer<typeof productSkuParamSchema>;

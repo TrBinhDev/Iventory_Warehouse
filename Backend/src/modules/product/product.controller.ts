@@ -6,6 +6,7 @@ import type {
   ListProductsQuery,
   ProductIdParam,
   ProductIdRouteParam,
+  ProductSkuParam,
 } from "./product.schema.js";
 
 // Xử lý request tạo sản phẩm mới
@@ -51,4 +52,11 @@ export async function getSkusByProduct(req: Request, res: Response): Promise<voi
   const { productId } = req.params as unknown as ProductIdRouteParam;
   const skus = await productService.getSkusByProduct(productId);
   sendSuccess(res, HttpStatus.OK, skus);
+}
+
+// Xử lý request xem chi tiết 1 SKU
+export async function getSkuDetail(req: Request, res: Response): Promise<void> {
+  const { productId, skuId } = req.params as unknown as ProductSkuParam;
+  const sku = await productService.getSkuDetail(productId, skuId);
+  sendSuccess(res, HttpStatus.OK, sku);
 }
