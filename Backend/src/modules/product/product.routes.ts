@@ -53,4 +53,10 @@ router.post(
   asyncHandler(productController.createSku)
 );
 
+router.get(
+  "/:productId/skus",
+  validate(productIdRouteParamSchema, "params"),
+  asyncHandler(productController.getSkusByProduct)
+);
+
 export { router as productRouter };

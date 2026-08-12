@@ -45,3 +45,10 @@ export async function createSku(req: Request, res: Response): Promise<void> {
   const sku = await productService.createSku(productId, req.body);
   sendSuccess(res, HttpStatus.CREATED, sku);
 }
+
+// Xử lý request lấy danh sách SKU của 1 sản phẩm
+export async function getSkusByProduct(req: Request, res: Response): Promise<void> {
+  const { productId } = req.params as unknown as ProductIdRouteParam;
+  const skus = await productService.getSkusByProduct(productId);
+  sendSuccess(res, HttpStatus.OK, skus);
+}

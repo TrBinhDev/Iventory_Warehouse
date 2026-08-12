@@ -68,6 +68,14 @@ export function createProduct(data: {
   });
 }
 
+// Lấy danh sách SKU thuộc 1 product
+export function findSkusByProductId(productId: string) {
+  return prisma.sKU.findMany({
+    where: { productId },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 // Tìm SKU theo skuCode — dùng để check trùng lúc tạo
 export function findSkuByCode(skuCode: string) {
   return prisma.sKU.findUnique({ where: { skuCode } });

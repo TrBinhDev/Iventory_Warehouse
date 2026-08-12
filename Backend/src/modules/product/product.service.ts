@@ -150,6 +150,16 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
   return toProductResponse(product);
 }
 
+// Lấy danh sách SKU của 1 sản phẩm — check product tồn tại trước
+export async function getSkusByProduct(productId: string) {
+  const product = await productRepository.findByIdBasic(productId);
+  if (!product) {
+    throw new NotFoundError(Message.PRODUCT.NOT_FOUND.message, Message.PRODUCT.NOT_FOUND.code);
+  }
+
+  return productRepository.findSkusByProductId(productId);
+}
+
 // Tạo SKU mới cho 1 sản phẩm — check product tồn tại, check trùng skuCode/barcode
 export async function createSku(productId: string, input: CreateSkuInput) {
   const product = await productRepository.findByIdBasic(productId);
