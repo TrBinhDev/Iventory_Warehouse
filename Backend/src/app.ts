@@ -7,6 +7,7 @@ import { errorHandler } from "./middlewares/errorHandler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { userRouter } from "./modules/user/user.routes.js";
 import { warehouseRouter } from "./modules/warehouse/warehouse.routes.js";
+import { supplierRouter } from "./modules/supplier/supplier.routes.js";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.get("/health", (_req, res) => {
 app.use("/auth", authRouter);
 app.use("/users", userRouter);
 app.use("/warehouses", warehouseRouter);
+app.use("/suppliers", supplierRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
