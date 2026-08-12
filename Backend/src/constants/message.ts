@@ -1,23 +1,82 @@
-export const ErrorCode = {
-  VALIDATION_ERROR: "VALIDATION_ERROR",
-  UNAUTHORIZED: "UNAUTHORIZED",
-  TOKEN_INVALID: "TOKEN_INVALID",
-  TOKEN_EXPIRED: "TOKEN_EXPIRED",
-  FORBIDDEN: "FORBIDDEN",
-  NOT_FOUND: "NOT_FOUND",
-  CONFLICT: "CONFLICT",
-  INTERNAL_ERROR: "INTERNAL_ERROR",
+// File này chứa toàn bộ message + code lỗi dùng trong app, namespace theo từng module để dễ soát/sửa.
+// Mỗi entry là cặp { code, message } đi chung — code dùng cho response.error.code (JSend),
+// message là nội dung tiếng Việt hiển thị cho client.
+
+export const Message = {
+  COMMON: {
+    SERVER_ERROR: { code: "INTERNAL_ERROR", message: "Đã có lỗi xảy ra, vui lòng thử lại sau" },
+    VALIDATION_ERROR: { code: "VALIDATION_ERROR", message: "Dữ liệu gửi lên không hợp lệ" },
+    UNAUTHORIZED: { code: "UNAUTHORIZED", message: "Bạn cần đăng nhập để thực hiện thao tác này" },
+    FORBIDDEN: { code: "FORBIDDEN", message: "Bạn không có quyền thực hiện thao tác này" },
+    NOT_FOUND: { code: "NOT_FOUND", message: "Không tìm thấy dữ liệu" },
+    CONFLICT: { code: "CONFLICT", message: "Dữ liệu đã bị thay đổi hoặc xung đột" },
+    TOKEN_INVALID: { code: "TOKEN_INVALID", message: "Token không hợp lệ" },
+    TOKEN_EXPIRED: { code: "TOKEN_EXPIRED", message: "Token đã hết hạn" },
+  },
+
+  AUTH: {
+    EMAIL_ALREADY_EXISTS: { code: "EMAIL_ALREADY_EXISTS", message: "Email đã được sử dụng" },
+    INVALID_CREDENTIALS: { code: "INVALID_CREDENTIALS", message: "Email hoặc mật khẩu không đúng" },
+    ACCOUNT_BLOCKED: { code: "ACCOUNT_BLOCKED", message: "Tài khoản đã bị khoá" },
+    ACCOUNT_INACTIVE: { code: "ACCOUNT_INACTIVE", message: "Tài khoản chưa được kích hoạt" },
+    OTP_EXPIRED: { code: "OTP_EXPIRED", message: "Mã OTP không tồn tại hoặc đã hết hạn" },
+    OTP_LOCKED: {
+      code: "OTP_LOCKED",
+      message: "Đã nhập sai quá số lần cho phép, vui lòng gửi lại mã mới",
+    },
+    OTP_INVALID: { code: "OTP_INVALID", message: "Mã OTP không đúng" },
+    EMAIL_ALREADY_VERIFIED: { code: "EMAIL_ALREADY_VERIFIED", message: "Email đã được xác thực" },
+    USER_NOT_FOUND: { code: "USER_NOT_FOUND", message: "Không tìm thấy tài khoản với email này" },
+    SESSION_REVOKED: {
+      code: "SESSION_REVOKED",
+      message: "Phiên đăng nhập đã hết hiệu lực, vui lòng đăng nhập lại",
+    },
+    RESET_TOKEN_INVALID: {
+      code: "RESET_TOKEN_INVALID",
+      message: "Token không hợp lệ hoặc đã hết hạn",
+    },
+    INVALID_CURRENT_PASSWORD: {
+      code: "INVALID_CURRENT_PASSWORD",
+      message: "Mật khẩu hiện tại không đúng",
+    },
+  },
+
+  USER: {
+    NOT_FOUND: { code: "USER_NOT_FOUND", message: "Không tìm thấy tài khoản" },
+    EMAIL_ALREADY_EXISTS: { code: "EMAIL_ALREADY_EXISTS", message: "Email đã được sử dụng" },
+    FORBIDDEN_ROLE: {
+      code: "FORBIDDEN_ROLE",
+      message: "Manager chỉ được tạo tài khoản Warehouse Staff",
+    },
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Manager chỉ được tạo tài khoản cho đúng kho mình quản lý",
+    },
+    FORBIDDEN_FIELD: {
+      code: "FORBIDDEN_FIELD",
+      message: "Manager không được sửa role/warehouseId",
+    },
+    CANNOT_CHANGE_OWN_ROLE: {
+      code: "CANNOT_CHANGE_OWN_ROLE",
+      message: "Không thể tự đổi role của chính mình",
+    },
+    INVALID_ROLE_WAREHOUSE_COMBINATION: {
+      code: "INVALID_ROLE_WAREHOUSE_COMBINATION",
+      message:
+        "warehouseId bắt buộc với Manager/Staff, không được có với Admin — cần gửi kèm warehouseId phù hợp khi đổi role",
+    },
+  },
+
+  WAREHOUSE: {
+    NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    CODE_ALREADY_EXISTS: { code: "WAREHOUSE_CODE_ALREADY_EXISTS", message: "Mã kho đã tồn tại" },
+  },
+
+  SUPPLIER: {
+    NOT_FOUND: { code: "SUPPLIER_NOT_FOUND", message: "Không tìm thấy nhà cung cấp" },
+    CODE_ALREADY_EXISTS: {
+      code: "SUPPLIER_CODE_ALREADY_EXISTS",
+      message: "Mã nhà cung cấp đã tồn tại",
+    },
+  },
 } as const;
-
-export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
-
-export const ErrorMessage: Record<ErrorCode, string> = {
-  VALIDATION_ERROR: "Dữ liệu gửi lên không hợp lệ",
-  UNAUTHORIZED: "Bạn cần đăng nhập để thực hiện thao tác này",
-  TOKEN_INVALID: "Token không hợp lệ",
-  TOKEN_EXPIRED: "Token đã hết hạn",
-  FORBIDDEN: "Bạn không có quyền thực hiện thao tác này",
-  NOT_FOUND: "Không tìm thấy dữ liệu",
-  CONFLICT: "Dữ liệu đã bị thay đổi hoặc xung đột",
-  INTERNAL_ERROR: "Đã có lỗi xảy ra, vui lòng thử lại sau",
-};

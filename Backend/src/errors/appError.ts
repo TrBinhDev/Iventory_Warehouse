@@ -1,5 +1,5 @@
 import { HttpStatus } from "../constants/httpStatus.js";
-import { ErrorCode, ErrorMessage } from "../constants/message.js";
+import { Message } from "../constants/message.js";
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -23,8 +23,8 @@ export class AppError extends Error {
 
 export class BadRequestError extends AppError {
   constructor(
-    message: string = ErrorMessage.VALIDATION_ERROR,
-    code: string = ErrorCode.VALIDATION_ERROR,
+    message: string = Message.COMMON.VALIDATION_ERROR.message,
+    code: string = Message.COMMON.VALIDATION_ERROR.code,
     details: unknown = null
   ) {
     super(HttpStatus.BAD_REQUEST, code, message, details);
@@ -33,8 +33,8 @@ export class BadRequestError extends AppError {
 
 export class UnauthorizedError extends AppError {
   constructor(
-    message: string = ErrorMessage.UNAUTHORIZED,
-    code: string = ErrorCode.UNAUTHORIZED,
+    message: string = Message.COMMON.UNAUTHORIZED.message,
+    code: string = Message.COMMON.UNAUTHORIZED.code,
     details: unknown = null
   ) {
     super(HttpStatus.UNAUTHORIZED, code, message, details);
@@ -43,8 +43,8 @@ export class UnauthorizedError extends AppError {
 
 export class ForbiddenError extends AppError {
   constructor(
-    message: string = ErrorMessage.FORBIDDEN,
-    code: string = ErrorCode.FORBIDDEN,
+    message: string = Message.COMMON.FORBIDDEN.message,
+    code: string = Message.COMMON.FORBIDDEN.code,
     details: unknown = null
   ) {
     super(HttpStatus.FORBIDDEN, code, message, details);
@@ -53,8 +53,8 @@ export class ForbiddenError extends AppError {
 
 export class NotFoundError extends AppError {
   constructor(
-    message: string = ErrorMessage.NOT_FOUND,
-    code: string = ErrorCode.NOT_FOUND,
+    message: string = Message.COMMON.NOT_FOUND.message,
+    code: string = Message.COMMON.NOT_FOUND.code,
     details: unknown = null
   ) {
     super(HttpStatus.NOT_FOUND, code, message, details);
@@ -63,8 +63,8 @@ export class NotFoundError extends AppError {
 
 export class ConflictError extends AppError {
   constructor(
-    message: string = ErrorMessage.CONFLICT,
-    code: string = ErrorCode.CONFLICT,
+    message: string = Message.COMMON.CONFLICT.message,
+    code: string = Message.COMMON.CONFLICT.code,
     details: unknown = null
   ) {
     super(HttpStatus.CONFLICT, code, message, details);

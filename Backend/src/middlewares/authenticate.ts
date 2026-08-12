@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { UnauthorizedError } from "../errors/appError.js";
-import { ErrorCode, ErrorMessage } from "../constants/message.js";
+import { Message } from "../constants/message.js";
 import { verifyAccessToken } from "../utils/jwt.util.js";
 
 export function authenticate(
@@ -12,7 +12,7 @@ export function authenticate(
   const header = req.headers.authorization;
 
   if (!header?.startsWith("Bearer ")) {
-    next(new UnauthorizedError(ErrorMessage.UNAUTHORIZED, ErrorCode.UNAUTHORIZED));
+    next(new UnauthorizedError(Message.COMMON.UNAUTHORIZED.message, Message.COMMON.UNAUTHORIZED.code));
     return;
   }
 
@@ -28,9 +28,9 @@ export function authenticate(
     next();
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      next(new UnauthorizedError(ErrorMessage.TOKEN_EXPIRED, ErrorCode.TOKEN_EXPIRED));
+      next(new UnauthorizedError(Message.COMMON.TOKEN_EXPIRED.message, Message.COMMON.TOKEN_EXPIRED.code));
       return;
     }
-    next(new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID));
+    next(new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code));
   }
 }

@@ -22,7 +22,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from "../../errors/appError.js";
-import { ErrorCode, ErrorMessage } from "../../constants/message.js";
+import { Message } from "../../constants/message.js";
 import {
   EMAIL_VERIFY_OTP_LENGTH,
   EMAIL_VERIFY_OTP_MAX_ATTEMPTS,
@@ -70,7 +70,7 @@ async function issueEmailOtp(userId: string, email: string): Promise<string> {
 export async function register(input: RegisterInput) {
   const existing = await authRepository.findByEmailSafe(input.email);
   if (existing) {
-    throw new ConflictError("Email đã được sử dụng", "EMAIL_ALREADY_EXISTS");
+    throw new ConflictError(Message.AUTH.EMAIL_ALREADY_EXISTS.message, Message.AUTH.EMAIL_ALREADY_EXISTS.code);
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -99,23 +99,20 @@ export async function verifyEmail(input: VerifyEmailInput) {
   const raw = await redis.get(key);
 
   if (!raw) {
-    throw new BadRequestError("Mã OTP không tồn tại hoặc đã hết hạn", "OTP_EXPIRED");
+    throw new BadRequestError(Message.AUTH.OTP_EXPIRED.message, Message.AUTH.OTP_EXPIRED.code);
   }
 
   const record = JSON.parse(raw) as EmailOtpRecord;
 
   if (record.attempts >= EMAIL_VERIFY_OTP_MAX_ATTEMPTS) {
     await redis.del(key);
-    throw new BadRequestError(
-      "Đã nhập sai quá số lần cho phép, vui lòng gửi lại mã mới",
-      "OTP_LOCKED"
-    );
+    throw new BadRequestError(Message.AUTH.OTP_LOCKED.message, Message.AUTH.OTP_LOCKED.code);
   }
 
   if (record.otp !== input.otp) {
     record.attempts += 1;
     await redis.set(key, JSON.stringify(record), "KEEPTTL");
-    throw new BadRequestError("Mã OTP không đúng", "OTP_INVALID", {
+    throw new BadRequestError(Message.AUTH.OTP_INVALID.message, Message.AUTH.OTP_INVALID.code, {
       remainingAttempts: EMAIL_VERIFY_OTP_MAX_ATTEMPTS - record.attempts,
     });
   }
@@ -128,11 +125,11 @@ export async function verifyEmail(input: VerifyEmailInput) {
 export async function resendVerification(input: ResendVerificationInput) {
   const user = await authRepository.findByEmailSafe(input.email);
   if (!user) {
-    throw new NotFoundError("Không tìm thấy tài khoản với email này", "USER_NOT_FOUND");
+    throw new NotFoundError(Message.AUTH.USER_NOT_FOUND.message, Message.AUTH.USER_NOT_FOUND.code);
   }
 
   if (user.isEmailVerified) {
-    throw new ConflictError("Email đã được xác thực", "EMAIL_ALREADY_VERIFIED");
+    throw new ConflictError(Message.AUTH.EMAIL_ALREADY_VERIFIED.message, Message.AUTH.EMAIL_ALREADY_VERIFIED.code);
   }
 
   const otp = await issueEmailOtp(user.id, user.email);
@@ -148,20 +145,17 @@ interface LoginMeta {
 export async function login(input: LoginInput, meta: LoginMeta) {
   const user = await authRepository.findByEmailWithPassword(input.email);
   if (!user) {
-    throw new UnauthorizedError("Email hoặc mật khẩu không đúng", "INVALID_CREDENTIALS");
+    throw new UnauthorizedError(Message.AUTH.INVALID_CREDENTIALS.message, Message.AUTH.INVALID_CREDENTIALS.code);
   }
 
   if (user.status !== "ACTIVE") {
-    const isBlocked = user.status === "BLOCKED";
-    throw new ForbiddenError(
-      isBlocked ? "Tài khoản đã bị khoá" : "Tài khoản chưa được kích hoạt",
-      isBlocked ? "ACCOUNT_BLOCKED" : "ACCOUNT_INACTIVE"
-    );
+    const info = user.status === "BLOCKED" ? Message.AUTH.ACCOUNT_BLOCKED : Message.AUTH.ACCOUNT_INACTIVE;
+    throw new ForbiddenError(info.message, info.code);
   }
 
   const isPasswordMatch = await comparePassword(input.password, user.passwordHash);
   if (!isPasswordMatch) {
-    throw new UnauthorizedError("Email hoặc mật khẩu không đúng", "INVALID_CREDENTIALS");
+    throw new UnauthorizedError(Message.AUTH.INVALID_CREDENTIALS.message, Message.AUTH.INVALID_CREDENTIALS.code);
   }
 
   const accessToken = signAccessToken({
@@ -186,7 +180,7 @@ export async function login(input: LoginInput, meta: LoginMeta) {
 // Cấp access+refresh token mới từ refresh token hợp lệ, rotate session (refresh token cũ hết hiệu lực ngay)
 export async function refresh(refreshToken: string | undefined, meta: LoginMeta) {
   if (!refreshToken) {
-    throw new UnauthorizedError(ErrorMessage.UNAUTHORIZED, ErrorCode.UNAUTHORIZED);
+    throw new UnauthorizedError(Message.COMMON.UNAUTHORIZED.message, Message.COMMON.UNAUTHORIZED.code);
   }
 
   let payload;
@@ -194,28 +188,25 @@ export async function refresh(refreshToken: string | undefined, meta: LoginMeta)
     payload = verifyRefreshToken(refreshToken);
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
-      throw new UnauthorizedError(ErrorMessage.TOKEN_EXPIRED, ErrorCode.TOKEN_EXPIRED);
+      throw new UnauthorizedError(Message.COMMON.TOKEN_EXPIRED.message, Message.COMMON.TOKEN_EXPIRED.code);
     }
-    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+    throw new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code);
   }
 
   const user = await authRepository.findByIdSafe(payload.sub);
   if (!user) {
-    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+    throw new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code);
   }
 
   if (user.status !== "ACTIVE") {
-    const isBlocked = user.status === "BLOCKED";
-    throw new ForbiddenError(
-      isBlocked ? "Tài khoản đã bị khoá" : "Tài khoản chưa được kích hoạt",
-      isBlocked ? "ACCOUNT_BLOCKED" : "ACCOUNT_INACTIVE"
-    );
+    const info = user.status === "BLOCKED" ? Message.AUTH.ACCOUNT_BLOCKED : Message.AUTH.ACCOUNT_INACTIVE;
+    throw new ForbiddenError(info.message, info.code);
   }
 
   const isSessionValid = await validateSession(user.id, refreshToken);
   if (!isSessionValid) {
     // Refresh token hợp lệ theo JWT nhưng session đã bị rotate/logout/xoá — bắt đăng nhập lại
-    throw new UnauthorizedError("Phiên đăng nhập đã hết hiệu lực, vui lòng đăng nhập lại", "SESSION_REVOKED");
+    throw new UnauthorizedError(Message.AUTH.SESSION_REVOKED.message, Message.AUTH.SESSION_REVOKED.code);
   }
 
   const newAccessToken = signAccessToken({
@@ -244,7 +235,7 @@ export async function logout(userId: string): Promise<void> {
 export async function getMe(userId: string) {
   const user = await authRepository.findByIdSafe(userId);
   if (!user) {
-    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+    throw new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code);
   }
   return user;
 }
@@ -278,7 +269,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
   const userId = await redis.get(key);
 
   if (!userId) {
-    throw new BadRequestError("Token không hợp lệ hoặc đã hết hạn", "RESET_TOKEN_INVALID");
+    throw new BadRequestError(Message.AUTH.RESET_TOKEN_INVALID.message, Message.AUTH.RESET_TOKEN_INVALID.code);
   }
 
   const passwordHash = await hashPassword(newPassword);
@@ -295,12 +286,12 @@ export async function changePassword(
 ): Promise<void> {
   const user = await authRepository.findByIdWithPassword(userId);
   if (!user) {
-    throw new UnauthorizedError(ErrorMessage.TOKEN_INVALID, ErrorCode.TOKEN_INVALID);
+    throw new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code);
   }
 
   const isMatch = await comparePassword(currentPassword, user.passwordHash);
   if (!isMatch) {
-    throw new BadRequestError("Mật khẩu hiện tại không đúng", "INVALID_CURRENT_PASSWORD");
+    throw new BadRequestError(Message.AUTH.INVALID_CURRENT_PASSWORD.message, Message.AUTH.INVALID_CURRENT_PASSWORD.code);
   }
 
   const passwordHash = await hashPassword(newPassword);

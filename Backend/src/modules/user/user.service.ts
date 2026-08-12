@@ -6,6 +6,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../../errors/appError.js";
+import { Message } from "../../constants/message.js";
 import * as userRepository from "./user.repository.js";
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from "./user.schema.js";
 
@@ -19,22 +20,19 @@ interface Actor {
 export async function createUser(actor: Actor, input: CreateUserInput) {
   if (actor.role === "WAREHOUSE_MANAGER") {
     if (input.role !== "WAREHOUSE_STAFF") {
-      throw new ForbiddenError(
-        "Manager chỉ được tạo tài khoản Warehouse Staff",
-        "FORBIDDEN_ROLE"
-      );
+      throw new ForbiddenError(Message.USER.FORBIDDEN_ROLE.message, Message.USER.FORBIDDEN_ROLE.code);
     }
     if (input.warehouseId !== actor.warehouseId) {
       throw new ForbiddenError(
-        "Manager chỉ được tạo tài khoản cho đúng kho mình quản lý",
-        "FORBIDDEN_WAREHOUSE"
+        Message.USER.FORBIDDEN_WAREHOUSE.message,
+        Message.USER.FORBIDDEN_WAREHOUSE.code
       );
     }
   }
 
   const existing = await userRepository.findByEmail(input.email);
   if (existing) {
-    throw new ConflictError("Email đã được sử dụng", "EMAIL_ALREADY_EXISTS");
+    throw new ConflictError(Message.USER.EMAIL_ALREADY_EXISTS.message, Message.USER.EMAIL_ALREADY_EXISTS.code);
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -81,7 +79,7 @@ function assertManagerCanAccess(actor: Actor, target: { role: UserRole; warehous
     return;
   }
   if (target.role !== "WAREHOUSE_STAFF" || target.warehouseId !== actor.warehouseId) {
-    throw new NotFoundError("Không tìm thấy tài khoản", "USER_NOT_FOUND");
+    throw new NotFoundError(Message.USER.NOT_FOUND.message, Message.USER.NOT_FOUND.code);
   }
 }
 
@@ -89,7 +87,7 @@ function assertManagerCanAccess(actor: Actor, target: { role: UserRole; warehous
 export async function getUserById(actor: Actor, id: string) {
   const user = await userRepository.findByIdSafe(id);
   if (!user) {
-    throw new NotFoundError("Không tìm thấy tài khoản", "USER_NOT_FOUND");
+    throw new NotFoundError(Message.USER.NOT_FOUND.message, Message.USER.NOT_FOUND.code);
   }
 
   assertManagerCanAccess(actor, user);
@@ -102,17 +100,20 @@ export async function getUserById(actor: Actor, id: string) {
 export async function updateUser(actor: Actor, id: string, input: UpdateUserInput) {
   const target = await userRepository.findByIdSafe(id);
   if (!target) {
-    throw new NotFoundError("Không tìm thấy tài khoản", "USER_NOT_FOUND");
+    throw new NotFoundError(Message.USER.NOT_FOUND.message, Message.USER.NOT_FOUND.code);
   }
 
   assertManagerCanAccess(actor, target);
 
   if (actor.role === "WAREHOUSE_MANAGER" && (input.role !== undefined || input.warehouseId !== undefined)) {
-    throw new ForbiddenError("Manager không được sửa role/warehouseId", "FORBIDDEN_FIELD");
+    throw new ForbiddenError(Message.USER.FORBIDDEN_FIELD.message, Message.USER.FORBIDDEN_FIELD.code);
   }
 
   if (input.role !== undefined && actor.id === target.id) {
-    throw new ForbiddenError("Không thể tự đổi role của chính mình", "CANNOT_CHANGE_OWN_ROLE");
+    throw new ForbiddenError(
+      Message.USER.CANNOT_CHANGE_OWN_ROLE.message,
+      Message.USER.CANNOT_CHANGE_OWN_ROLE.code
+    );
   }
 
   if (input.role !== undefined || input.warehouseId !== undefined) {
@@ -127,8 +128,8 @@ export async function updateUser(actor: Actor, id: string, input: UpdateUserInpu
 
     if (!isConsistent) {
       throw new BadRequestError(
-        "warehouseId bắt buộc với Manager/Staff, không được có với Admin — cần gửi kèm warehouseId phù hợp khi đổi role",
-        "INVALID_ROLE_WAREHOUSE_COMBINATION"
+        Message.USER.INVALID_ROLE_WAREHOUSE_COMBINATION.message,
+        Message.USER.INVALID_ROLE_WAREHOUSE_COMBINATION.code
       );
     }
   }
@@ -136,7 +137,7 @@ export async function updateUser(actor: Actor, id: string, input: UpdateUserInpu
   if (input.email !== undefined && input.email !== target.email) {
     const existing = await userRepository.findByEmail(input.email);
     if (existing && existing.id !== target.id) {
-      throw new ConflictError("Email đã được sử dụng", "EMAIL_ALREADY_EXISTS");
+      throw new ConflictError(Message.USER.EMAIL_ALREADY_EXISTS.message, Message.USER.EMAIL_ALREADY_EXISTS.code);
     }
   }
 

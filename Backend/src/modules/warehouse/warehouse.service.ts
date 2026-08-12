@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
+import { Message } from "../../constants/message.js";
 import * as warehouseRepository from "./warehouse.repository.js";
 import type {
   CreateWarehouseInput,
@@ -11,7 +12,7 @@ import type {
 export async function createWarehouse(input: CreateWarehouseInput) {
   const existing = await warehouseRepository.findByCode(input.code);
   if (existing) {
-    throw new ConflictError("Mã kho đã tồn tại", "WAREHOUSE_CODE_ALREADY_EXISTS");
+    throw new ConflictError(Message.WAREHOUSE.CODE_ALREADY_EXISTS.message, Message.WAREHOUSE.CODE_ALREADY_EXISTS.code);
   }
 
   return warehouseRepository.createWarehouse(input);
@@ -38,7 +39,7 @@ export async function listWarehouses(query: ListWarehousesQuery) {
 export async function getWarehouseById(id: string) {
   const warehouse = await warehouseRepository.findById(id);
   if (!warehouse) {
-    throw new NotFoundError("Không tìm thấy kho", "WAREHOUSE_NOT_FOUND");
+    throw new NotFoundError(Message.WAREHOUSE.NOT_FOUND.message, Message.WAREHOUSE.NOT_FOUND.code);
   }
   return warehouse;
 }
@@ -47,13 +48,13 @@ export async function getWarehouseById(id: string) {
 export async function updateWarehouse(id: string, input: UpdateWarehouseInput) {
   const existing = await warehouseRepository.findById(id);
   if (!existing) {
-    throw new NotFoundError("Không tìm thấy kho", "WAREHOUSE_NOT_FOUND");
+    throw new NotFoundError(Message.WAREHOUSE.NOT_FOUND.message, Message.WAREHOUSE.NOT_FOUND.code);
   }
 
   if (input.code !== undefined && input.code !== existing.code) {
     const duplicated = await warehouseRepository.findByCode(input.code);
     if (duplicated && duplicated.id !== id) {
-      throw new ConflictError("Mã kho đã tồn tại", "WAREHOUSE_CODE_ALREADY_EXISTS");
+      throw new ConflictError(Message.WAREHOUSE.CODE_ALREADY_EXISTS.message, Message.WAREHOUSE.CODE_ALREADY_EXISTS.code);
     }
   }
 

@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import { AppError } from "../errors/appError.js";
-import { ErrorCode, ErrorMessage } from "../constants/message.js";
+import { Message } from "../constants/message.js";
 import { HttpStatus } from "../constants/httpStatus.js";
 import { sendError } from "../utils/response.util.js";
 import { logger } from "../config/logger.js";
@@ -25,8 +25,8 @@ export function errorHandler(
     sendError(
       res,
       HttpStatus.BAD_REQUEST,
-      ErrorCode.VALIDATION_ERROR,
-      ErrorMessage.VALIDATION_ERROR,
+      Message.COMMON.VALIDATION_ERROR.code,
+      Message.COMMON.VALIDATION_ERROR.message,
       details
     );
     return;
@@ -36,7 +36,7 @@ export function errorHandler(
   sendError(
     res,
     HttpStatus.INTERNAL_SERVER_ERROR,
-    ErrorCode.INTERNAL_ERROR,
-    ErrorMessage.INTERNAL_ERROR
+    Message.COMMON.SERVER_ERROR.code,
+    Message.COMMON.SERVER_ERROR.message
   );
 }

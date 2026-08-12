@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ZodType } from "zod";
 import { BadRequestError } from "../errors/appError.js";
-import { ErrorCode, ErrorMessage } from "../constants/message.js";
+import { Message } from "../constants/message.js";
 
 type Source = "body" | "query" | "params";
 
@@ -16,8 +16,8 @@ export function validate(schema: ZodType, source: Source = "body") {
       }));
       next(
         new BadRequestError(
-          ErrorMessage.VALIDATION_ERROR,
-          ErrorCode.VALIDATION_ERROR,
+          Message.COMMON.VALIDATION_ERROR.message,
+          Message.COMMON.VALIDATION_ERROR.code,
           details
         )
       );

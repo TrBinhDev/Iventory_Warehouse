@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
+import { Message } from "../../constants/message.js";
 import * as supplierRepository from "./supplier.repository.js";
 import type { CreateSupplierInput, ListSuppliersQuery } from "./supplier.schema.js";
 
@@ -7,7 +8,7 @@ import type { CreateSupplierInput, ListSuppliersQuery } from "./supplier.schema.
 export async function createSupplier(input: CreateSupplierInput) {
   const existing = await supplierRepository.findByCode(input.code);
   if (existing) {
-    throw new ConflictError("Mã nhà cung cấp đã tồn tại", "SUPPLIER_CODE_ALREADY_EXISTS");
+    throw new ConflictError(Message.SUPPLIER.CODE_ALREADY_EXISTS.message, Message.SUPPLIER.CODE_ALREADY_EXISTS.code);
   }
 
   return supplierRepository.createSupplier(input);
@@ -34,7 +35,7 @@ export async function listSuppliers(query: ListSuppliersQuery) {
 export async function getSupplierById(id: string) {
   const supplier = await supplierRepository.findById(id);
   if (!supplier) {
-    throw new NotFoundError("Không tìm thấy nhà cung cấp", "SUPPLIER_NOT_FOUND");
+    throw new NotFoundError(Message.SUPPLIER.NOT_FOUND.message, Message.SUPPLIER.NOT_FOUND.code);
   }
   return supplier;
 }
