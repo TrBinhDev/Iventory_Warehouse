@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { decimalStringSchema } from "../../utils/decimal.util.js";
 
 // Payload tạo sản phẩm mới, kèm gán category (optional)
 export const createProductSchema = z.object({
@@ -42,3 +43,22 @@ export const updateProductSchema = z.object({
 });
 
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+
+// Param :productId dùng cho các route lồng /products/:productId/skus...
+export const productIdRouteParamSchema = z.object({
+  productId: z.string().uuid("productId không hợp lệ"),
+});
+
+export type ProductIdRouteParam = z.infer<typeof productIdRouteParamSchema>;
+
+// Payload tạo SKU (biến thể) mới cho 1 sản phẩm
+export const createSkuSchema = z.object({
+  skuCode: z.string().min(1, "Mã SKU không được để trống").max(50, "Mã tối đa 50 ký tự"),
+  barcode: z.string().max(50).optional(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
+  price: decimalStringSchema(2, "Giá không hợp lệ (số, tối đa 2 chữ số thập phân)"),
+  cost: decimalStringSchema(2, "Giá vốn không hợp lệ (số, tối đa 2 chữ số thập phân)").optional(),
+  weight: decimalStringSchema(3, "Khối lượng không hợp lệ (số, tối đa 3 chữ số thập phân)").optional(),
+});
+
+export type CreateSkuInput = z.infer<typeof createSkuSchema>;

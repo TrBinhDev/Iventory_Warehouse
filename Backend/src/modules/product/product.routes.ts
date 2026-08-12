@@ -8,6 +8,8 @@ import {
   listProductsQuerySchema,
   productIdParamSchema,
   updateProductSchema,
+  productIdRouteParamSchema,
+  createSkuSchema,
 } from "./product.schema.js";
 import * as productController from "./product.controller.js";
 
@@ -40,6 +42,15 @@ router.patch(
   validate(productIdParamSchema, "params"),
   validate(updateProductSchema, "body"),
   asyncHandler(productController.updateProduct)
+);
+
+router.post(
+  "/:productId/skus",
+  authenticate,
+  authorize("ADMIN"),
+  validate(productIdRouteParamSchema, "params"),
+  validate(createSkuSchema, "body"),
+  asyncHandler(productController.createSku)
 );
 
 export { router as productRouter };

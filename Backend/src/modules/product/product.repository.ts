@@ -68,6 +68,29 @@ export function createProduct(data: {
   });
 }
 
+// Tìm SKU theo skuCode — dùng để check trùng lúc tạo
+export function findSkuByCode(skuCode: string) {
+  return prisma.sKU.findUnique({ where: { skuCode } });
+}
+
+// Tìm SKU theo barcode — dùng để check trùng lúc tạo (chỉ gọi khi có barcode)
+export function findSkuByBarcode(barcode: string) {
+  return prisma.sKU.findUnique({ where: { barcode } });
+}
+
+// Tạo SKU (biến thể) mới cho 1 sản phẩm
+export function createSku(data: {
+  productId: string;
+  skuCode: string;
+  barcode?: string;
+  attributes?: Prisma.InputJsonValue;
+  price: string;
+  cost?: string;
+  weight?: string;
+}) {
+  return prisma.sKU.create({ data });
+}
+
 // Sửa sản phẩm (partial update) — categoryIds nếu !== undefined thì xoá hết category cũ, gán lại theo danh sách mới
 // (deleteMany + create trong cùng 1 lệnh update, vẫn atomic nhờ nested write của Prisma)
 export function updateProduct(

@@ -2,7 +2,11 @@ import type { Request, Response } from "express";
 import { HttpStatus } from "../../constants/httpStatus.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as productService from "./product.service.js";
-import type { ListProductsQuery, ProductIdParam } from "./product.schema.js";
+import type {
+  ListProductsQuery,
+  ProductIdParam,
+  ProductIdRouteParam,
+} from "./product.schema.js";
 
 // Xử lý request tạo sản phẩm mới
 export async function createProduct(req: Request, res: Response): Promise<void> {
@@ -33,4 +37,11 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
   const { id } = req.params as unknown as ProductIdParam;
   const product = await productService.updateProduct(id, req.body);
   sendSuccess(res, HttpStatus.OK, product);
+}
+
+// Xử lý request tạo SKU mới cho 1 sản phẩm
+export async function createSku(req: Request, res: Response): Promise<void> {
+  const { productId } = req.params as unknown as ProductIdRouteParam;
+  const sku = await productService.createSku(productId, req.body);
+  sendSuccess(res, HttpStatus.CREATED, sku);
 }

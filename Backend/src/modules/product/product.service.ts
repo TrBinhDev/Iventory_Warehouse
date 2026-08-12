@@ -6,6 +6,7 @@ import type {
   CreateProductInput,
   ListProductsQuery,
   UpdateProductInput,
+  CreateSkuInput,
 } from "./product.schema.js";
 
 type ProductWithCategories = Prisma.ProductGetPayload<{
@@ -147,4 +148,41 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
   });
 
   return toProductResponse(product);
+}
+
+// Tạo SKU mới cho 1 sản phẩm — check product tồn tại, check trùng skuCode/barcode
+export async function createSku(productId: string, input: CreateSkuInput) {
+  const product = await productRepository.findByIdBasic(productId);
+  if (!product) {
+    throw new NotFoundError(Message.PRODUCT.NOT_FOUND.message, Message.PRODUCT.NOT_FOUND.code);
+  }
+
+  const existingCode = await productRepository.findSkuByCode(input.skuCode);
+  if (existingCode) {
+    throw new ConflictError(
+      Message.PRODUCT.SKU_CODE_ALREADY_EXISTS.message,
+      Message.PRODUCT.SKU_CODE_ALREADY_EXISTS.code
+    );
+  }
+
+  if (input.barcode) {
+    const existingBarcode = await productRepository.findSkuByBarcode(input.barcode);
+    if (existingBarcode) {
+      throw new ConflictError(
+        Message.PRODUCT.SKU_BARCODE_ALREADY_EXISTS.message,
+        Message.PRODUCT.SKU_BARCODE_ALREADY_EXISTS.code
+      );
+    }
+  }
+
+  return productRepository.createSku({
+    productId,
+    skuCode: input.skuCode,
+    barcode: input.barcode,
+    // attributes đã được Zod validate là plain object (record) — ép kiểu sang InputJsonValue cho Prisma
+    attributes: input.attributes as Prisma.InputJsonValue | undefined,
+    price: input.price,
+    cost: input.cost,
+    weight: input.weight,
+  });
 }
