@@ -9,6 +9,7 @@ import { userRouter } from "./modules/user/user.routes.js";
 import { warehouseRouter } from "./modules/warehouse/warehouse.routes.js";
 import { supplierRouter } from "./modules/supplier/supplier.routes.js";
 import { categoryRouter } from "./modules/category/category.routes.js";
+import { productRouter } from "./modules/product/product.routes.js";
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use("/users", userRouter);
 app.use("/warehouses", warehouseRouter);
 app.use("/suppliers", supplierRouter);
 app.use("/categories", categoryRouter);
+app.use("/products", productRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

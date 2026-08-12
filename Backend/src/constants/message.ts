@@ -87,4 +87,19 @@ export const Message = {
       message: "Mã loại sản phẩm đã tồn tại",
     },
   },
+
+  PRODUCT: {
+    NOT_FOUND: { code: "PRODUCT_NOT_FOUND", message: "Không tìm thấy sản phẩm" },
+    CODE_ALREADY_EXISTS: { code: "PRODUCT_CODE_ALREADY_EXISTS", message: "Mã sản phẩm đã tồn tại" },
+    CATEGORY_NOT_FOUND: {
+      code: "PRODUCT_CATEGORY_NOT_FOUND",
+      message: "Một hoặc nhiều categoryId không tồn tại",
+    },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+    SKU_CODE_ALREADY_EXISTS: { code: "SKU_CODE_ALREADY_EXISTS", message: "Mã SKU đã tồn tại" },
+    SKU_BARCODE_ALREADY_EXISTS: {
+      code: "SKU_BARCODE_ALREADY_EXISTS",
+      message: "Barcode đã tồn tại",
+    },
+  },
 } as const;
