@@ -11,6 +11,11 @@ export function findById(id: string) {
   return prisma.supplier.findUnique({ where: { id } });
 }
 
+// Sửa NCC (partial update)
+export function updateSupplier(id: string, data: Prisma.SupplierUpdateInput) {
+  return prisma.supplier.update({ where: { id }, data });
+}
+
 // Lấy danh sách NCC theo filter, có phân trang
 export function findMany(where: Prisma.SupplierWhereInput, skip: number, take: number) {
   return prisma.supplier.findMany({

@@ -27,3 +27,10 @@ export async function getSupplierById(req: Request, res: Response): Promise<void
   const supplier = await supplierService.getSupplierById(id);
   sendSuccess(res, HttpStatus.OK, supplier);
 }
+
+// Xử lý request sửa NCC
+export async function updateSupplier(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as SupplierIdParam;
+  const supplier = await supplierService.updateSupplier(id, req.body);
+  sendSuccess(res, HttpStatus.OK, supplier);
+}

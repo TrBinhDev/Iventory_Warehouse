@@ -7,6 +7,7 @@ import {
   createSupplierSchema,
   listSuppliersQuerySchema,
   supplierIdParamSchema,
+  updateSupplierSchema,
 } from "./supplier.schema.js";
 import * as supplierController from "./supplier.controller.js";
 
@@ -34,6 +35,15 @@ router.get(
   authorize("ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"),
   validate(supplierIdParamSchema, "params"),
   asyncHandler(supplierController.getSupplierById)
+);
+
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(supplierIdParamSchema, "params"),
+  validate(updateSupplierSchema, "body"),
+  asyncHandler(supplierController.updateSupplier)
 );
 
 export { router as supplierRouter };
