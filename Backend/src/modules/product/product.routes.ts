@@ -11,6 +11,7 @@ import {
   productIdRouteParamSchema,
   createSkuSchema,
   productSkuParamSchema,
+  updateSkuSchema,
 } from "./product.schema.js";
 import * as productController from "./product.controller.js";
 
@@ -64,6 +65,15 @@ router.get(
   "/:productId/skus/:skuId",
   validate(productSkuParamSchema, "params"),
   asyncHandler(productController.getSkuDetail)
+);
+
+router.patch(
+  "/:productId/skus/:skuId",
+  authenticate,
+  authorize("ADMIN"),
+  validate(productSkuParamSchema, "params"),
+  validate(updateSkuSchema, "body"),
+  asyncHandler(productController.updateSku)
 );
 
 export { router as productRouter };

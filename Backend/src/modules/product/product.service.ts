@@ -7,6 +7,7 @@ import type {
   ListProductsQuery,
   UpdateProductInput,
   CreateSkuInput,
+  UpdateSkuInput,
 } from "./product.schema.js";
 
 type ProductWithCategories = Prisma.ProductGetPayload<{
@@ -203,5 +204,43 @@ export async function createSku(productId: string, input: CreateSkuInput) {
     price: input.price,
     cost: input.cost,
     weight: input.weight,
+  });
+}
+
+// Sửa SKU (partial update) — check SKU tồn tại + đúng thuộc productId, check trùng skuCode/barcode nếu đổi
+export async function updateSku(productId: string, skuId: string, input: UpdateSkuInput) {
+  const existingSku = await productRepository.findSkuById(skuId);
+  if (!existingSku || existingSku.productId !== productId) {
+    throw new NotFoundError(Message.PRODUCT.SKU_NOT_FOUND.message, Message.PRODUCT.SKU_NOT_FOUND.code);
+  }
+
+  if (input.skuCode !== undefined && input.skuCode !== existingSku.skuCode) {
+    const duplicatedCode = await productRepository.findSkuByCode(input.skuCode);
+    if (duplicatedCode && duplicatedCode.id !== skuId) {
+      throw new ConflictError(
+        Message.PRODUCT.SKU_CODE_ALREADY_EXISTS.message,
+        Message.PRODUCT.SKU_CODE_ALREADY_EXISTS.code
+      );
+    }
+  }
+
+  if (input.barcode !== undefined && input.barcode !== existingSku.barcode) {
+    const duplicatedBarcode = await productRepository.findSkuByBarcode(input.barcode);
+    if (duplicatedBarcode && duplicatedBarcode.id !== skuId) {
+      throw new ConflictError(
+        Message.PRODUCT.SKU_BARCODE_ALREADY_EXISTS.message,
+        Message.PRODUCT.SKU_BARCODE_ALREADY_EXISTS.code
+      );
+    }
+  }
+
+  return productRepository.updateSku(skuId, {
+    skuCode: input.skuCode,
+    barcode: input.barcode,
+    attributes: input.attributes as Prisma.InputJsonValue | undefined,
+    price: input.price,
+    cost: input.cost,
+    weight: input.weight,
+    status: input.status,
   });
 }

@@ -104,6 +104,25 @@ export function createSku(data: {
   return prisma.sKU.create({ data });
 }
 
+// Sửa SKU (partial update)
+export function updateSku(
+  id: string,
+  data: {
+    skuCode?: string;
+    barcode?: string;
+    attributes?: Prisma.InputJsonValue;
+    price?: string;
+    cost?: string;
+    weight?: string;
+    status?: "ACTIVE" | "INACTIVE";
+  }
+) {
+  return prisma.sKU.update({
+    where: { id },
+    data,
+  });
+}
+
 // Sửa sản phẩm (partial update) — categoryIds nếu !== undefined thì xoá hết category cũ, gán lại theo danh sách mới
 // (deleteMany + create trong cùng 1 lệnh update, vẫn atomic nhờ nested write của Prisma)
 export function updateProduct(

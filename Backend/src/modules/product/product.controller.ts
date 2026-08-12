@@ -60,3 +60,10 @@ export async function getSkuDetail(req: Request, res: Response): Promise<void> {
   const sku = await productService.getSkuDetail(productId, skuId);
   sendSuccess(res, HttpStatus.OK, sku);
 }
+
+// Xử lý request sửa SKU
+export async function updateSku(req: Request, res: Response): Promise<void> {
+  const { productId, skuId } = req.params as unknown as ProductSkuParam;
+  const sku = await productService.updateSku(productId, skuId, req.body);
+  sendSuccess(res, HttpStatus.OK, sku);
+}

@@ -70,3 +70,16 @@ export const productSkuParamSchema = z.object({
 });
 
 export type ProductSkuParam = z.infer<typeof productSkuParamSchema>;
+
+// Payload sửa SKU (partial update)
+export const updateSkuSchema = z.object({
+  skuCode: z.string().min(1, "Mã SKU không được để trống").max(50, "Mã tối đa 50 ký tự").optional(),
+  barcode: z.string().max(50).optional(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
+  price: decimalStringSchema(2, "Giá không hợp lệ (số, tối đa 2 chữ số thập phân)").optional(),
+  cost: decimalStringSchema(2, "Giá vốn không hợp lệ (số, tối đa 2 chữ số thập phân)").optional(),
+  weight: decimalStringSchema(3, "Khối lượng không hợp lệ (số, tối đa 3 chữ số thập phân)").optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
+export type UpdateSkuInput = z.infer<typeof updateSkuSchema>;
