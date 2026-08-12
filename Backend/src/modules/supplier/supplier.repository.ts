@@ -6,6 +6,11 @@ export function findByCode(code: string) {
   return prisma.supplier.findUnique({ where: { code } });
 }
 
+// Tìm NCC theo id
+export function findById(id: string) {
+  return prisma.supplier.findUnique({ where: { id } });
+}
+
 // Lấy danh sách NCC theo filter, có phân trang
 export function findMany(where: Prisma.SupplierWhereInput, skip: number, take: number) {
   return prisma.supplier.findMany({

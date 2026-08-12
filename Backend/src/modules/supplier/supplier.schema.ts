@@ -21,3 +21,10 @@ export const listSuppliersQuerySchema = z.object({
 });
 
 export type ListSuppliersQuery = z.infer<typeof listSuppliersQuerySchema>;
+
+// Param :id dùng chung cho GET/PATCH /suppliers/:id
+export const supplierIdParamSchema = z.object({
+  id: z.string().uuid("id không hợp lệ"),
+});
+
+export type SupplierIdParam = z.infer<typeof supplierIdParamSchema>;

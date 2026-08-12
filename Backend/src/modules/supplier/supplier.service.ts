@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { ConflictError } from "../../errors/appError.js";
+import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import * as supplierRepository from "./supplier.repository.js";
 import type { CreateSupplierInput, ListSuppliersQuery } from "./supplier.schema.js";
 
@@ -28,4 +28,13 @@ export async function listSuppliers(query: ListSuppliersQuery) {
   ]);
 
   return { items, total };
+}
+
+// Xem chi tiết 1 NCC
+export async function getSupplierById(id: string) {
+  const supplier = await supplierRepository.findById(id);
+  if (!supplier) {
+    throw new NotFoundError("Không tìm thấy nhà cung cấp", "SUPPLIER_NOT_FOUND");
+  }
+  return supplier;
 }

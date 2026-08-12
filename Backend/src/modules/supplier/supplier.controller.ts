@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { HttpStatus } from "../../constants/httpStatus.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as supplierService from "./supplier.service.js";
-import type { ListSuppliersQuery } from "./supplier.schema.js";
+import type { ListSuppliersQuery, SupplierIdParam } from "./supplier.schema.js";
 
 // Xử lý request tạo nhà cung cấp mới
 export async function createSupplier(req: Request, res: Response): Promise<void> {
@@ -19,4 +19,11 @@ export async function listSuppliers(req: Request, res: Response): Promise<void> 
     limit: query.limit,
     total,
   });
+}
+
+// Xử lý request xem chi tiết 1 NCC
+export async function getSupplierById(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as SupplierIdParam;
+  const supplier = await supplierService.getSupplierById(id);
+  sendSuccess(res, HttpStatus.OK, supplier);
 }
