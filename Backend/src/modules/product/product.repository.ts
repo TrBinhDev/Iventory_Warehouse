@@ -93,6 +93,9 @@ export function updateProduct(
       status: data.status,
       ...(data.categoryIds !== undefined
         ? {
+            // Ép updatedAt tự tay — nếu chỉ đổi categoryIds thì data không có field nào của riêng Product,
+            // Prisma sẽ bỏ qua UPDATE trên bảng Product (chỉ đụng ProductCategory), updatedAt sẽ không tự nhảy nếu thiếu dòng này
+            updatedAt: new Date(),
             categories: {
               deleteMany: {},
               create: data.categoryIds.map((categoryId) => ({ categoryId })),
