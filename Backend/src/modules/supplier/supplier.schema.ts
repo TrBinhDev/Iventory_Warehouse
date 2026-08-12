@@ -12,3 +12,12 @@ export const createSupplierSchema = z.object({
 });
 
 export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
+
+// Query params cho danh sách NCC (phân trang + filter status)
+export const listSuppliersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+});
+
+export type ListSuppliersQuery = z.infer<typeof listSuppliersQuerySchema>;
