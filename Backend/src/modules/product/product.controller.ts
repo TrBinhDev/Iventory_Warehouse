@@ -27,3 +27,10 @@ export async function getProductById(req: Request, res: Response): Promise<void>
   const product = await productService.getProductById(id);
   sendSuccess(res, HttpStatus.OK, product);
 }
+
+// Xử lý request sửa sản phẩm
+export async function updateProduct(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as ProductIdParam;
+  const product = await productService.updateProduct(id, req.body);
+  sendSuccess(res, HttpStatus.OK, product);
+}

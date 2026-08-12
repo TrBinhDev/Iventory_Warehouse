@@ -2,7 +2,11 @@ import type { Prisma } from "@prisma/client";
 import { BadRequestError, ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import * as productRepository from "./product.repository.js";
-import type { CreateProductInput, ListProductsQuery } from "./product.schema.js";
+import type {
+  CreateProductInput,
+  ListProductsQuery,
+  UpdateProductInput,
+} from "./product.schema.js";
 
 type ProductWithCategories = Prisma.ProductGetPayload<{
   include: { categories: { include: { category: true } } };
@@ -99,4 +103,48 @@ export async function getProductById(id: string) {
     throw new NotFoundError(Message.PRODUCT.NOT_FOUND.message, Message.PRODUCT.NOT_FOUND.code);
   }
   return toProductDetailResponse(product);
+}
+
+// Sửa sản phẩm — Admin only, đổi code check trùng, categoryIds nếu gửi thì validate tồn tại rồi set lại toàn bộ
+export async function updateProduct(id: string, input: UpdateProductInput) {
+  const existingProduct = await productRepository.findByIdBasic(id);
+  if (!existingProduct) {
+    throw new NotFoundError(Message.PRODUCT.NOT_FOUND.message, Message.PRODUCT.NOT_FOUND.code);
+  }
+
+  if (input.code !== undefined && input.code !== existingProduct.code) {
+    const duplicated = await productRepository.findByCode(input.code);
+    if (duplicated && duplicated.id !== id) {
+      throw new ConflictError(
+        Message.PRODUCT.CODE_ALREADY_EXISTS.message,
+        Message.PRODUCT.CODE_ALREADY_EXISTS.code
+      );
+    }
+  }
+
+  let categoryIds: string[] | undefined;
+  if (input.categoryIds !== undefined) {
+    categoryIds = [...new Set(input.categoryIds)];
+    if (categoryIds.length > 0) {
+      const foundCount = await productRepository.countExistingCategories(categoryIds);
+      if (foundCount !== categoryIds.length) {
+        throw new BadRequestError(
+          Message.PRODUCT.CATEGORY_NOT_FOUND.message,
+          Message.PRODUCT.CATEGORY_NOT_FOUND.code
+        );
+      }
+    }
+  }
+
+  const product = await productRepository.updateProduct(id, {
+    code: input.code,
+    name: input.name,
+    description: input.description,
+    unit: input.unit,
+    images: input.images,
+    status: input.status,
+    categoryIds,
+  });
+
+  return toProductResponse(product);
 }

@@ -29,3 +29,16 @@ export const productIdParamSchema = z.object({
 });
 
 export type ProductIdParam = z.infer<typeof productIdParamSchema>;
+
+// Payload sửa sản phẩm (partial update) — categoryIds nếu gửi thì set lại TOÀN BỘ danh sách category
+export const updateProductSchema = z.object({
+  code: z.string().min(1, "Mã sản phẩm không được để trống").max(50, "Mã tối đa 50 ký tự").optional(),
+  name: z.string().min(1, "Tên sản phẩm không được để trống").max(255).optional(),
+  description: z.string().optional(),
+  unit: z.string().min(1, "Đơn vị tính không được để trống").max(20).optional(),
+  images: z.array(z.string().url("URL ảnh không hợp lệ")).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  categoryIds: z.array(z.string().uuid("categoryId không hợp lệ")).optional(),
+});
+
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;

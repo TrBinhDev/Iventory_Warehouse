@@ -7,6 +7,7 @@ import {
   createProductSchema,
   listProductsQuerySchema,
   productIdParamSchema,
+  updateProductSchema,
 } from "./product.schema.js";
 import * as productController from "./product.controller.js";
 
@@ -30,6 +31,15 @@ router.get(
   "/:id",
   validate(productIdParamSchema, "params"),
   asyncHandler(productController.getProductById)
+);
+
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(productIdParamSchema, "params"),
+  validate(updateProductSchema, "body"),
+  asyncHandler(productController.updateProduct)
 );
 
 export { router as productRouter };
