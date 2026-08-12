@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { BadRequestError, ConflictError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import * as productRepository from "./product.repository.js";
-import type { CreateProductInput } from "./product.schema.js";
+import type { CreateProductInput, ListProductsQuery } from "./product.schema.js";
 
 type ProductWithCategories = Prisma.ProductGetPayload<{
   include: { categories: { include: { category: true } } };
@@ -48,4 +48,33 @@ export async function createProduct(input: CreateProductInput) {
   });
 
   return toProductResponse(product);
+}
+
+// Danh sách sản phẩm có phân trang — public, filter status/category, search theo tên/mã
+export async function listProducts(query: ListProductsQuery) {
+  const where: Prisma.ProductWhereInput = {};
+
+  if (query.status) {
+    where.status = query.status;
+  }
+
+  if (query.categoryId) {
+    where.categories = { some: { categoryId: query.categoryId } };
+  }
+
+  if (query.search) {
+    where.OR = [
+      { name: { contains: query.search, mode: "insensitive" } },
+      { code: { contains: query.search, mode: "insensitive" } },
+    ];
+  }
+
+  const skip = (query.page - 1) * query.limit;
+
+  const [items, total] = await Promise.all([
+    productRepository.findMany(where, skip, query.limit),
+    productRepository.count(where),
+  ]);
+
+  return { items, total };
 }

@@ -11,3 +11,14 @@ export const createProductSchema = z.object({
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
+
+// Query params cho danh sách sản phẩm (phân trang + filter status/category + search tên/mã)
+export const listProductsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  categoryId: z.string().uuid("categoryId không hợp lệ").optional(),
+  search: z.string().min(1).max(255).optional(),
+});
+
+export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>;
