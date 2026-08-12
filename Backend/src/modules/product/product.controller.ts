@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { HttpStatus } from "../../constants/httpStatus.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as productService from "./product.service.js";
-import type { ListProductsQuery } from "./product.schema.js";
+import type { ListProductsQuery, ProductIdParam } from "./product.schema.js";
 
 // Xử lý request tạo sản phẩm mới
 export async function createProduct(req: Request, res: Response): Promise<void> {
@@ -19,4 +19,11 @@ export async function listProducts(req: Request, res: Response): Promise<void> {
     limit: query.limit,
     total,
   });
+}
+
+// Xử lý request xem chi tiết 1 sản phẩm
+export async function getProductById(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as ProductIdParam;
+  const product = await productService.getProductById(id);
+  sendSuccess(res, HttpStatus.OK, product);
 }

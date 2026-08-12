@@ -22,3 +22,10 @@ export const listProductsQuerySchema = z.object({
 });
 
 export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>;
+
+// Param :id dùng chung cho GET/PATCH /products/:id
+export const productIdParamSchema = z.object({
+  id: z.string().uuid("id không hợp lệ"),
+});
+
+export type ProductIdParam = z.infer<typeof productIdParamSchema>;

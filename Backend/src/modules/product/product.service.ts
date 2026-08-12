@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { BadRequestError, ConflictError } from "../../errors/appError.js";
+import { BadRequestError, ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import * as productRepository from "./product.repository.js";
 import type { CreateProductInput, ListProductsQuery } from "./product.schema.js";
@@ -8,8 +8,21 @@ type ProductWithCategories = Prisma.ProductGetPayload<{
   include: { categories: { include: { category: true } } };
 }>;
 
+type ProductWithDetails = Prisma.ProductGetPayload<{
+  include: { categories: { include: { category: true } }; skus: true };
+}>;
+
 // Chuẩn hoá response: category lồng phẳng ra thành mảng Category thật, bỏ field trung gian của bảng nối
 function toProductResponse(product: ProductWithCategories) {
+  const { categories, ...rest } = product;
+  return {
+    ...rest,
+    categories: categories.map((productCategory) => productCategory.category),
+  };
+}
+
+// Giống toProductResponse nhưng giữ thêm skus (đã include sẵn, không cần flatten vì SKU trỏ thẳng productId, không qua bảng trung gian)
+function toProductDetailResponse(product: ProductWithDetails) {
   const { categories, ...rest } = product;
   return {
     ...rest,
@@ -77,4 +90,13 @@ export async function listProducts(query: ListProductsQuery) {
   ]);
 
   return { items, total };
+}
+
+// Xem chi tiết 1 sản phẩm — public, kèm categories + skus
+export async function getProductById(id: string) {
+  const product = await productRepository.findById(id);
+  if (!product) {
+    throw new NotFoundError(Message.PRODUCT.NOT_FOUND.message, Message.PRODUCT.NOT_FOUND.code);
+  }
+  return toProductDetailResponse(product);
 }

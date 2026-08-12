@@ -11,6 +11,17 @@ export function countExistingCategories(categoryIds: string[]) {
   return prisma.category.count({ where: { id: { in: categoryIds } } });
 }
 
+// Tìm product theo id, kèm categories (qua bảng trung gian) và skus
+export function findById(id: string) {
+  return prisma.product.findUnique({
+    where: { id },
+    include: {
+      categories: { include: { category: true } },
+      skus: true,
+    },
+  });
+}
+
 // Lấy danh sách sản phẩm theo filter, có phân trang
 export function findMany(where: Prisma.ProductWhereInput, skip: number, take: number) {
   return prisma.product.findMany({
