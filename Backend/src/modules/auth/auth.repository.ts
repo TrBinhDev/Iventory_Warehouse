@@ -63,6 +63,18 @@ export function markEmailVerified(userId: string) {
   });
 }
 
+// Cập nhật hồ sơ cá nhân — chỉ nhận 3 field an toàn, không có đường để đụng role/status/warehouseId
+export function updateProfile(
+  userId: string,
+  data: { fullName?: string; phone?: string | null; avatarUrl?: string | null }
+) {
+  return prisma.user.update({
+    where: { id: userId },
+    data,
+    select: SAFE_USER_SELECT,
+  });
+}
+
 // Cập nhật mật khẩu mới (dùng cho reset-password và change-password)
 export function updatePassword(userId: string, passwordHash: string) {
   return prisma.user.update({

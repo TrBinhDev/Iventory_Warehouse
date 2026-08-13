@@ -67,6 +67,12 @@ export async function me(req: Request, res: Response): Promise<void> {
   sendSuccess(res, HttpStatus.OK, user);
 }
 
+// Xử lý request tự sửa hồ sơ cá nhân (họ tên, số điện thoại, ảnh đại diện)
+export async function updateMe(req: Request, res: Response): Promise<void> {
+  const user = await authService.updateMe(req.user!.id, req.body);
+  sendSuccess(res, HttpStatus.OK, user);
+}
+
 // Xử lý request xác thực email bằng mã OTP
 export async function verifyEmail(req: Request, res: Response): Promise<void> {
   const user = await authService.verifyEmail(req.body);

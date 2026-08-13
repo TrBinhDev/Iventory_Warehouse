@@ -37,6 +37,7 @@ import type {
   LoginInput,
   VerifyEmailInput,
   ResendVerificationInput,
+  UpdateMeInput,
 } from "./auth.schema.js";
 
 interface EmailOtpRecord {
@@ -238,6 +239,21 @@ export async function getMe(userId: string) {
     throw new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code);
   }
   return user;
+}
+
+// Tự sửa hồ sơ cá nhân — mọi role đều dùng được, luôn tác động lên chính mình
+// (userId lấy từ access token, không nhận id từ client nên không sửa nhầm/cố ý sang người khác)
+export async function updateMe(userId: string, input: UpdateMeInput) {
+  const user = await authRepository.findByIdSafe(userId);
+  if (!user) {
+    throw new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code);
+  }
+
+  return authRepository.updateProfile(userId, {
+    fullName: input.fullName,
+    phone: input.phone,
+    avatarUrl: input.avatarUrl,
+  });
 }
 
 // Yêu cầu đặt lại mật khẩu: sinh token + gửi email nếu email tồn tại, im lặng bỏ qua nếu không

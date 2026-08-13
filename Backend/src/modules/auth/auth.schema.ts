@@ -59,3 +59,19 @@ export const changePasswordSchema = z.object({
 });
 
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+// Payload tự sửa hồ sơ cá nhân — CỐ Ý chỉ 3 field này.
+// Không cho đụng role/status/warehouseId (tự nâng quyền), cũng không cho đổi email
+// (đổi email phải qua luồng verify lại, không thể sửa thẳng ở đây).
+// avatarUrl nhận null để người dùng gỡ ảnh đại diện về mặc định.
+export const updateMeSchema = z
+  .object({
+    fullName: z.string().min(1, "Họ tên không được để trống").max(255).optional(),
+    phone: z.string().max(20).nullable().optional(),
+    avatarUrl: z.string().url("avatarUrl không hợp lệ").nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Cần gửi ít nhất một field để cập nhật",
+  });
+
+export type UpdateMeInput = z.infer<typeof updateMeSchema>;

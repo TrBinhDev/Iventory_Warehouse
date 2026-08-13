@@ -10,6 +10,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  updateMeSchema,
 } from "./auth.schema.js";
 import * as authController from "./auth.controller.js";
 
@@ -32,6 +33,15 @@ router.post("/refresh", asyncHandler(authController.refresh));
 router.post("/logout", authenticate, asyncHandler(authController.logout));
 
 router.get("/me", authenticate, asyncHandler(authController.me));
+
+// Không phân quyền theo role: mọi user đã đăng nhập đều tự sửa được hồ sơ của CHÍNH MÌNH.
+// Không có :id trên đường dẫn nên không thể nhắm vào tài khoản người khác.
+router.patch(
+  "/me",
+  authenticate,
+  validate(updateMeSchema, "body"),
+  asyncHandler(authController.updateMe)
+);
 
 router.post(
   "/verify-email",
