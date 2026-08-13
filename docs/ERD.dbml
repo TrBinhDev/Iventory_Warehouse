@@ -467,7 +467,7 @@ Enum ReferenceType {
   INVENTORY_ADJUSTMENT
 }
 
-Ref: User.warehouseId > Warehouse.id
+Ref: User.warehouseId > Warehouse.id [delete: Restrict]
 
 Ref: ProductCategory.productId > Product.id [delete: Cascade]
 
@@ -491,7 +491,7 @@ Ref: SalesOrder.warehouseId > Warehouse.id
 
 Ref: SalesOrder.customerId > User.id
 
-Ref: SalesOrder.reservationId > Reservation.id
+Ref: SalesOrder.reservationId > Reservation.id [delete: Restrict]
 
 Ref: SalesOrderItem.salesOrderId > SalesOrder.id
 
@@ -499,9 +499,9 @@ Ref: SalesOrderItem.skuId > SKU.id
 
 Ref: Inbound.warehouseId > Warehouse.id
 
-Ref: Inbound.supplierId > Supplier.id
+Ref: Inbound.supplierId > Supplier.id [delete: Restrict]
 
-Ref: Inbound.salesOrderId > SalesOrder.id
+Ref: Inbound.salesOrderId > SalesOrder.id [delete: Restrict]
 
 Ref: Inbound.createdByUserId > User.id
 
@@ -511,9 +511,9 @@ Ref: InboundItem.skuId > SKU.id
 
 Ref: Outbound.warehouseId > Warehouse.id
 
-Ref: Outbound.salesOrderId > SalesOrder.id
+Ref: Outbound.salesOrderId > SalesOrder.id [delete: Restrict]
 
-Ref: Outbound.supplierId > Supplier.id
+Ref: Outbound.supplierId > Supplier.id [delete: Restrict]
 
 Ref: Outbound.createdByUserId > User.id
 
@@ -541,4 +541,4 @@ Ref: InventoryAdjustmentItem.skuId > SKU.id
 
 Ref: InventoryMovement.inventoryId > Inventory.id
 
-Ref: InventoryMovement.createdByUserId > User.id
+Ref: InventoryMovement.createdByUserId > User.id [delete: Restrict]

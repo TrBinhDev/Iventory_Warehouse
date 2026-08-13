@@ -35,7 +35,9 @@ model User {
   role              UserRole
 
   warehouseId       String?                    @db.Uuid
-  warehouse         Warehouse?                 @relation(fields: [warehouseId], references: [id])
+  // Restrict thay vì mặc định SetNull: xoá kho không được phép biến Manager/Staff
+  // thành tài khoản không thuộc kho nào (trạng thái module user cấm)
+  warehouse         Warehouse?                 @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
 
   fullName          String                     @db.VarChar(255)
   email             String                     @unique @db.VarChar(255)
@@ -162,6 +164,11 @@ model Product {
   updatedAt   DateTime        @updatedAt
 
   @@index([status])
+  // Index trigram cho tìm kiếm ILIKE '%...%' (GET /products?search=, GET /inventories?search=).
+  // Khai báo ở đây thay vì chỉ tạo bằng raw SQL, nếu không mỗi lần `migrate diff` Prisma
+  // sẽ coi là lệch schema và sinh lệnh DROP INDEX.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model ProductCategory {
@@ -209,6 +216,8 @@ model SKU {
 
   @@index([productId])
   @@index([status])
+  // Index trigram cho tìm kiếm ILIKE '%...%' (GET /inventories?search=)
+  @@index([skuCode(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 // ============================================================
@@ -322,7 +331,7 @@ model SalesOrder {
   customer        User                @relation(fields: [customerId], references: [id])
 
   reservationId   String?             @db.Uuid
-  reservation     Reservation?        @relation(fields: [reservationId], references: [id])
+  reservation     Reservation?        @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
   status          SalesOrderStatus    @default(PENDING)
   totalAmount     Decimal             @db.Decimal(15, 2)
@@ -392,10 +401,11 @@ model Inbound {
   reason          InboundReason   @default(FROM_SUPPLIER)
 
   supplierId      String?         @db.Uuid
-  supplier        Supplier?       @relation(fields: [supplierId], references: [id])
+  // Restrict: xoá nhà cung cấp không được xoá luôn nguồn gốc của phiếu nhập đã lưu
+  supplier        Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
   salesOrderId    String?         @db.Uuid
-  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id])
+  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
 
   createdByUserId String          @db.Uuid
   createdBy       User            @relation(fields: [createdByUserId], references: [id])
@@ -466,10 +476,11 @@ model Outbound {
   reason          OutboundReason  @default(SALES_ORDER)
 
   salesOrderId    String?         @db.Uuid
-  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id])
+  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
 
   supplierId      String?         @db.Uuid
-  supplier        Supplier?       @relation(fields: [supplierId], references: [id])
+  // Restrict: cùng lý do với Inbound — không để xoá NCC làm mất nguồn gốc phiếu đã lưu
+  supplier        Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
   createdByUserId String          @db.Uuid
   createdBy       User            @relation(fields: [createdByUserId], references: [id])
@@ -661,7 +672,9 @@ model InventoryMovement {
   inventory       Inventory       @relation(fields: [inventoryId], references: [id])
 
   createdByUserId String?         @db.Uuid
-  createdBy       User?           @relation(fields: [createdByUserId], references: [id])
+  // Cột vẫn nullable (movement do job tự động sinh thì không có user nào) — nhưng Restrict
+  // để xoá user KHÔNG xoá được dấu vết người đã thao tác trên các movement đã ghi
+  createdBy       User?           @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   movementType    MovementType
   referenceType   ReferenceType
