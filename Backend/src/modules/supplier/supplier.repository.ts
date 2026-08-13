@@ -43,3 +43,18 @@ export function createSupplier(data: {
 }) {
   return prisma.supplier.create({ data });
 }
+
+// Đếm số phiếu nhập/xuất còn tham chiếu tới NCC này — dùng để chặn xoá.
+// Chạy song song vì 2 truy vấn độc lập nhau.
+export async function countReferences(supplierId: string) {
+  const [inbound, outbound] = await Promise.all([
+    prisma.inbound.count({ where: { supplierId } }),
+    prisma.outbound.count({ where: { supplierId } }),
+  ]);
+  return { inbound, outbound };
+}
+
+// Xoá hẳn nhà cung cấp — chỉ gọi khi đã chắc không còn phiếu nào tham chiếu
+export function deleteSupplier(id: string) {
+  return prisma.supplier.delete({ where: { id } });
+}

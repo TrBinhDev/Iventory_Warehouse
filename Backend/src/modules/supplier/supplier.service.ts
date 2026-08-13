@@ -63,3 +63,29 @@ export async function updateSupplier(id: string, input: UpdateSupplierInput) {
 
   return supplierRepository.updateSupplier(id, input);
 }
+
+// Xoá hẳn nhà cung cấp — Admin only, chỉ cho xoá khi chưa có phiếu nhập/xuất nào tham chiếu.
+// Bắt buộc phải tự đếm: FK của Inbound/Outbound.supplierId trước đây là SET NULL (nay đã đổi
+// sang Restrict), và kể cả có Restrict thì lỗi P2003 cũng không nói được vướng bao nhiêu ở đâu.
+export async function deleteSupplier(id: string) {
+  const existing = await supplierRepository.findById(id);
+  if (!existing) {
+    throw new NotFoundError(Message.SUPPLIER.NOT_FOUND.message, Message.SUPPLIER.NOT_FOUND.code);
+  }
+
+  const { inbound, outbound } = await supplierRepository.countReferences(id);
+  const blockers = [
+    { resource: "inbound", label: "phiếu nhập", count: inbound },
+    { resource: "outbound", label: "phiếu xuất", count: outbound },
+  ].filter((item) => item.count > 0);
+
+  if (blockers.length > 0) {
+    throw new ConflictError(
+      Message.SUPPLIER.IN_USE.message,
+      Message.SUPPLIER.IN_USE.code,
+      blockers
+    );
+  }
+
+  await supplierRepository.deleteSupplier(id);
+}

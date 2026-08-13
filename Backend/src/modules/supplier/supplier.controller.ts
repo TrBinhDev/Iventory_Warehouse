@@ -34,3 +34,10 @@ export async function updateSupplier(req: Request, res: Response): Promise<void>
   const supplier = await supplierService.updateSupplier(id, req.body);
   sendSuccess(res, HttpStatus.OK, supplier);
 }
+
+// Xử lý request xoá NCC
+export async function deleteSupplier(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as SupplierIdParam;
+  await supplierService.deleteSupplier(id);
+  sendSuccess(res, HttpStatus.OK, { id });
+}

@@ -78,6 +78,10 @@ export const Message = {
       code: "SUPPLIER_CODE_ALREADY_EXISTS",
       message: "Mã nhà cung cấp đã tồn tại",
     },
+    IN_USE: {
+      code: "SUPPLIER_IN_USE",
+      message: "Không thể xoá nhà cung cấp vì đang được sử dụng",
+    },
   },
 
   CATEGORY: {

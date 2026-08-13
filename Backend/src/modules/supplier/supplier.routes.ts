@@ -46,4 +46,12 @@ router.patch(
   asyncHandler(supplierController.updateSupplier)
 );
 
+router.delete(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(supplierIdParamSchema, "params"),
+  asyncHandler(supplierController.deleteSupplier)
+);
+
 export { router as supplierRouter };
