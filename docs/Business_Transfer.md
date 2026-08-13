@@ -122,3 +122,26 @@ SKU       (1) ─────────────< TransferItem (N)
 8. **`createdByUserId`** — track nhân viên tạo phiếu ở kho nguồn. Việc "ai xác nhận RECEIVED ở kho B" không track riêng trong schema hiện tại (chỉ có 1 `createdByUserId` cho cả phiếu) — nếu cần audit rõ ai xác nhận nhận hàng, có thể thêm `receivedByUserId` (nullable) sau, hiện tại giữ tối giản.
 
 9. **`code`** — mã phiếu chuyển kho dễ đọc (VD `TRF-20260811-0001`), cùng nguyên tắc với `Reservation.code`.
+
+10. **Phân quyền theo status** (chốt bổ sung — cùng bảng với `Business_Inbound.md` điểm 7 và `Business_Outbound.md` điểm 9):
+
+    | Hành động | Staff | Manager | Admin | Thuộc kho nào |
+    |---|:---:|:---:|:---:|---|
+    | Tạo phiếu (`DRAFT`) | ✓ | ✓ | ✓ | kho nguồn (A) |
+    | Duyệt (`DRAFT → CONFIRMED`) | ✗ | ✓ | ✓ | kho nguồn (A) |
+    | Xuất hàng (`CONFIRMED → SHIPPED`) | ✓ | ✓ | ✓ | kho nguồn (A) |
+    | Nhận hàng (`SHIPPED → RECEIVED`) | ✓ | ✓ | ✓ | **kho đích (B)** |
+    | Huỷ khi đang `DRAFT` | ✓ | ✓ | ✓ | kho nguồn (A) |
+    | Huỷ khi đang `CONFIRMED` | ✗ | ✓ | ✓ | kho nguồn (A) |
+
+    Nguyên tắc phân tách giống Inbound/Outbound: **duyệt cần cấp trên, thao tác vật lý để Staff làm**.
+
+    **Điểm ABAC riêng của Transfer, khác hẳn 2 module kia:** phiếu này liên quan 2 kho nên không thể check ABAC bằng một `warehouseId` duy nhất. Cụ thể:
+    - 4 hành động đầu + huỷ: check `actor.warehouseId === transfer.fromWarehouseId`
+    - Riêng `RECEIVED`: check `actor.warehouseId === transfer.toWarehouseId` — người nhận hàng là nhân viên **kho đích**, không phải kho nguồn. Nếu dùng nhầm `fromWarehouseId` ở đây thì nhân viên kho B sẽ không bao giờ xác nhận nhận hàng được.
+
+    Admin không bị giới hạn ở cả 2 phía.
+
+    Huỷ phiếu chỉ cho phép khi `DRAFT`/`CONFIRMED` — lúc đó chưa chạm `Inventory` kho nào (điểm 3), nên chỉ update status, không cần transaction/lock. Đã `SHIPPED` thì không huỷ được vì kho A đã trừ `onHand`, muốn đảo phải tạo phiếu Transfer ngược lại.
+
+    Liên quan: điểm 8 đã nêu schema hiện chỉ có 1 `createdByUserId` (nhân viên kho nguồn tạo phiếu), không track riêng ai xác nhận `RECEIVED` ở kho B. Nếu muốn audit đầy đủ theo bảng phân quyền này thì cân nhắc thêm `receivedByUserId` (nullable) khi làm module.

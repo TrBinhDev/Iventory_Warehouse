@@ -122,3 +122,21 @@ SKU        (1) ─────────────< OutboundItem (N)
 7. **`createdByUserId`** — cùng nguyên tắc với `Inbound`, track nhân viên tạo phiếu, validate `createdBy.warehouseId === Outbound.warehouseId` ở service layer.
 
 8. **`code`** — mã phiếu xuất dễ đọc (VD `OUT-20260811-0001`), cùng nguyên tắc với `Reservation.code`.
+
+9. **Phân quyền theo status** (chốt bổ sung — cùng bảng với `Business_Inbound.md` điểm 7 và `Business_Transfer.md` điểm 10, giữ nhất quán giữa 3 module):
+
+   | Hành động | Staff | Manager | Admin |
+   |---|:---:|:---:|:---:|
+   | Tạo phiếu (`DRAFT`) | ✓ | ✓ | ✓ |
+   | Duyệt (`DRAFT → CONFIRMED`) | ✗ | ✓ | ✓ |
+   | Xuất hàng (`CONFIRMED → SHIPPED`) | ✓ | ✓ | ✓ |
+   | Huỷ khi đang `DRAFT` | ✓ | ✓ | ✓ |
+   | Huỷ khi đang `CONFIRMED` | ✗ | ✓ | ✓ |
+
+   Nguyên tắc phân tách: **duyệt là quyết định phê chuẩn** nên cần cấp trên; **xuất hàng là ghi nhận sự thật vật lý** (hàng đã rời kho) nên Staff làm.
+
+   Lưu ý `SHIPPED` là bước trừ CẢ `onHand` LẪN `reserved` (điểm 3) nên nhìn qua có vẻ rủi ro nhất trong 3 module — nhưng quyền quyết định cho xuất đã được chốt ở bước `CONFIRMED` trước đó, `SHIPPED` chỉ ghi lại việc hàng thực sự đi ra. Vì vậy vẫn giữ mở cho Staff, đồng bộ với `RECEIVED` của Inbound/Transfer. Nếu về sau muốn siết riêng bước này thì phải sửa cả 3 doc cho khỏi lệch nguyên tắc.
+
+   Quyền huỷ theo nguyên tắc **tương xứng với quyền đã tạo ra trạng thái hiện tại**: nháp chưa duyệt thì người nhập tự huỷ; đã duyệt thì chỉ Manager/Admin.
+
+   Mọi thao tác kèm ABAC theo `warehouseId` (cùng nguyên tắc điểm 7). Huỷ phiếu **không chạm `Inventory`** vì `DRAFT`/`CONFIRMED` chưa trừ gì — chỉ update status, không cần transaction/lock.

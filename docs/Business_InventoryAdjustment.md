@@ -78,7 +78,9 @@ SKU                  (1) ─────────────< InventoryAdjus
 
 2. **Chỉ 2 status (`DRAFT` → `COMPLETED`), không có `CONFIRMED` ở giữa** — khác với Inbound/Outbound/Transfer. Vì đây là hành động kiểm kê xong nhập liệu và xác nhận tại chỗ, không có khoảng chờ "đang vận chuyển"/"chờ hàng về" như 3 bảng kia.
 
-3. **Phân quyền — chỉ `WAREHOUSE_MANAGER` hoặc `ADMIN` được tạo VÀ hoàn tất Adjustment**, không cho `WAREHOUSE_STAFF`. Khác với Inbound/Outbound/Transfer (Staff tạo được, chỉ bước duyệt mới cần Manager/Admin) — Adjustment không cho Staff động vào ở bất kỳ bước nào. Validate ở service layer/middleware, không phải DB constraint.
+3. **Phân quyền — chỉ `WAREHOUSE_MANAGER` hoặc `ADMIN` được tạo VÀ hoàn tất Adjustment**, không cho `WAREHOUSE_STAFF`. Khác với Inbound/Outbound/Transfer (Staff tạo được, chỉ bước duyệt mới cần Manager/Admin — xem bảng phân quyền đầy đủ ở `Business_Inbound.md` điểm 7, `Business_Outbound.md` điểm 9, `Business_Transfer.md` điểm 10) — Adjustment không cho Staff động vào ở bất kỳ bước nào. Validate ở service layer/middleware, không phải DB constraint.
+
+   Lý do siết chặt hơn hẳn 3 module kia: Adjustment là nghiệp vụ **duy nhất đổi được `onHand` mà không cần đối chứng vật lý nào**. Inbound phải có hàng nhà cung cấp giao, Outbound phải có hàng đi ra, Transfer có kho bên kia đối chiếu — còn Adjustment chỉ cần khai "thực tế đếm được N cái" là số trong hệ thống đổi theo. Nếu cho Staff quyền này thì chính người hàng ngày cầm hàng cũng là người tự chỉnh sổ, mất hàng rồi chỉnh sổ cho khớp sẽ không ai phát hiện. Tách quyền khỏi người trực tiếp thao tác hàng là nguyên tắc kiểm soát nội bộ (separation of duties).
 
 4. **`expectedVersion` — cốt lõi của Optimistic Locking:**
    - Lúc mở form kiểm kê (tạo `DRAFT`), đọc `Inventory.version` hiện tại, lưu vào `expectedVersion` của từng `InventoryAdjustmentItem`.

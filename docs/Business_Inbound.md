@@ -129,3 +129,21 @@ Về mặt Inventory, cả 2 nhánh xử lý **giống hệt nhau** ở bước 
 5. **Trường hợp SKU lần đầu nhập vào 1 Warehouse chưa từng có Inventory row** — cần upsert (insert nếu chưa tồn tại) thay vì luôn assume row đã có sẵn, khác với Reservation/SalesOrder/Outbound (luôn yêu cầu row đã tồn tại từ trước, nếu không có nghĩa là chưa từng nhập kho, không thể bán/xuất).
 
 6. **`code`** — mã phiếu nhập dễ đọc (VD `IN-20260811-0001`), cùng nguyên tắc với `Reservation.code`.
+
+7. **Phân quyền theo status** (chốt bổ sung — trước đây quyền chỉ suy ra gián tiếp được từ `Business_InventoryAdjustment.md` điểm 3, ba doc Inbound/Outbound/Transfer không phát biểu tường minh):
+
+   | Hành động | Staff | Manager | Admin |
+   |---|:---:|:---:|:---:|
+   | Tạo phiếu (`DRAFT`) | ✓ | ✓ | ✓ |
+   | Duyệt (`DRAFT → CONFIRMED`) | ✗ | ✓ | ✓ |
+   | Nhận hàng (`CONFIRMED → RECEIVED`) | ✓ | ✓ | ✓ |
+   | Huỷ khi đang `DRAFT` | ✓ | ✓ | ✓ |
+   | Huỷ khi đang `CONFIRMED` | ✗ | ✓ | ✓ |
+
+   Nguyên tắc phân tách: **duyệt là quyết định phê chuẩn** nên cần cấp trên; **nhận hàng là ghi nhận sự thật vật lý** nên để Staff làm — chính họ là người đứng tại kho đếm hàng và nhập `quantityReceived` (điểm 3b). Bắt Manager tự tay xác nhận mỗi chuyến hàng về chỉ tạo nút thắt cổ chai, không thêm kiểm soát, vì phiếu đã được duyệt từ trước.
+
+   Riêng quyền huỷ đi theo nguyên tắc **tương xứng với quyền đã tạo ra trạng thái hiện tại**: huỷ bản nháp chưa ai duyệt thì người nhập tự huỷ được; huỷ phiếu đã duyệt là đảo ngược quyết định của cấp trên nên phải cấp tương đương mới được đảo.
+
+   Mọi thao tác đều kèm ABAC: Staff/Manager chỉ đụng được phiếu thuộc đúng `warehouseId` của mình, Admin không giới hạn (cùng nguyên tắc với điểm 2).
+
+   Huỷ phiếu **không chạm `Inventory`** (vì `DRAFT`/`CONFIRMED` chưa từng cộng `onHand`) — chỉ update status + `cancelledAt`, không cần transaction/lock, không ghi `InventoryMovement`.
