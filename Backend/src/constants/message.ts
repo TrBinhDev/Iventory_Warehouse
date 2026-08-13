@@ -26,6 +26,10 @@ export const Message = {
     },
     OTP_INVALID: { code: "OTP_INVALID", message: "Mã OTP không đúng" },
     EMAIL_ALREADY_VERIFIED: { code: "EMAIL_ALREADY_VERIFIED", message: "Email đã được xác thực" },
+    EMAIL_NOT_VERIFIED: {
+      code: "EMAIL_NOT_VERIFIED",
+      message: "Email chưa được xác thực, vui lòng nhập mã OTP đã gửi tới email của bạn",
+    },
     USER_NOT_FOUND: { code: "USER_NOT_FOUND", message: "Không tìm thấy tài khoản với email này" },
     SESSION_REVOKED: {
       code: "SESSION_REVOKED",

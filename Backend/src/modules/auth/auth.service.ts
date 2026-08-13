@@ -160,6 +160,16 @@ export async function login(input: LoginInput, meta: LoginMeta) {
     throw new UnauthorizedError(Message.AUTH.INVALID_CREDENTIALS.message, Message.AUTH.INVALID_CREDENTIALS.code);
   }
 
+  // Chặn sau khi đã kiểm mật khẩu, không phải trước — kiểm trước thì kẻ dò email biết được
+  // email nào có thật (chưa verify) và email nào không tồn tại, qua 2 thông báo lỗi khác nhau.
+  // Chỉ ảnh hưởng Customer tự đăng ký; Admin/Manager/Staff do Admin tạo luôn có isEmailVerified = true.
+  if (!user.isEmailVerified) {
+    throw new ForbiddenError(
+      Message.AUTH.EMAIL_NOT_VERIFIED.message,
+      Message.AUTH.EMAIL_NOT_VERIFIED.code
+    );
+  }
+
   const accessToken = signAccessToken({
     sub: user.id,
     role: user.role,
@@ -269,6 +279,13 @@ export async function updateMe(userId: string, input: UpdateMeInput) {
 export async function forgotPassword(email: string): Promise<void> {
   const user = await authRepository.findByEmailSafe(email);
   if (!user) {
+    return;
+  }
+
+  // Không gửi link đặt lại cho email chưa xác thực: nếu gửi thì ai kiểm soát email đó
+  // sẽ chiếm được tài khoản mà không cần chứng minh sở hữu email bao giờ.
+  // Im lặng bỏ qua (không báo lỗi) để giữ nguyên tính chống dò email tồn tại.
+  if (!user.isEmailVerified) {
     return;
   }
 

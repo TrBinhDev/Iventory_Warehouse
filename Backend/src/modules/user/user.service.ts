@@ -9,6 +9,7 @@ import {
 import { Message } from "../../constants/message.js";
 import { deleteFilesByUrls } from "../../utils/storage.util.js";
 import { assertNoReferences } from "../../utils/reference.util.js";
+import { destroySession } from "../../utils/session.util.js";
 import * as userRepository from "./user.repository.js";
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from "./user.schema.js";
 
@@ -153,6 +154,19 @@ export async function updateUser(actor: Actor, id: string, input: UpdateUserInpu
     warehouseId: input.warehouseId,
   });
 
+  // Huỷ phiên đăng nhập khi quyền hạn hoặc trạng thái thay đổi.
+  // Access token là stateless nên authenticate không biết role/status vừa đổi — nếu không huỷ
+  // session thì người bị khoá hoặc bị hạ quyền vẫn dùng token cũ tới khi hết hạn, và còn gia hạn
+  // được qua /auth/refresh. Huỷ session bắt họ đăng nhập lại, lúc đó token mới mang đúng quyền.
+  const isBlocked = input.status !== undefined && input.status !== "ACTIVE";
+  const isRoleChanged = input.role !== undefined && input.role !== target.role;
+  const isWarehouseChanged =
+    input.warehouseId !== undefined && input.warehouseId !== target.warehouseId;
+
+  if (isBlocked || isRoleChanged || isWarehouseChanged) {
+    await destroySession(target.id);
+  }
+
   // Đổi avatar thì xoá ảnh cũ trên R2 (gọi sau khi DB xong, best-effort)
   if (input.avatarUrl !== undefined && target.avatarUrl && target.avatarUrl !== input.avatarUrl) {
     await deleteFilesByUrls([target.avatarUrl]);
@@ -193,6 +207,10 @@ export async function deleteUser(actor: Actor, id: string) {
   );
 
   await userRepository.deleteUser(id);
+
+  // Huỷ session để access token còn hiệu lực không dùng tiếp được, đồng thời dọn key
+  // session:<userId> trong Redis (key có TTL 7 ngày, không huỷ thì nằm rác tới lúc hết hạn)
+  await destroySession(id);
 
   // Dọn avatar trên R2 sau khi DB đã xong (best-effort, cùng nguyên tắc với A5)
   if (target.avatarUrl) {
