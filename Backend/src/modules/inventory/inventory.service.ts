@@ -1,9 +1,9 @@
-import type { UserRole } from "@prisma/client";
+import type { Prisma, UserRole } from "@prisma/client";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import { withAvailable } from "../../utils/inventory.util.js";
 import * as inventoryRepository from "./inventory.repository.js";
-import type { CreateInventoryInput } from "./inventory.schema.js";
+import type { CreateInventoryInput, ListInventoriesQuery } from "./inventory.schema.js";
 
 interface Actor {
   id: string;
@@ -47,4 +47,42 @@ export async function createInventory(actor: Actor, input: CreateInventoryInput)
 
   const inventory = await inventoryRepository.createInventory(input);
   return withAvailable(inventory);
+}
+
+// Danh sách tồn kho có phân trang — Manager/Staff bị ép cứng chỉ xem kho mình,
+// warehouseId họ gửi lên bị bỏ qua (không phải lỗi, chỉ đơn giản là không có tác dụng)
+export async function listInventories(actor: Actor, query: ListInventoriesQuery) {
+  const where: Prisma.InventoryWhereInput = {};
+
+  if (actor.role === "ADMIN") {
+    if (query.warehouseId) {
+      where.warehouseId = query.warehouseId;
+    }
+  } else {
+    // Manager/Staff: nếu vì lý do nào đó không gắn kho thì không thấy gì (fail closed), không thấy tất cả
+    where.warehouseId = actor.warehouseId ?? undefined;
+    if (!actor.warehouseId) {
+      return { items: [], total: 0 };
+    }
+  }
+
+  if (query.skuId) {
+    where.skuId = query.skuId;
+  }
+
+  if (query.search) {
+    where.OR = [
+      { sku: { skuCode: { contains: query.search, mode: "insensitive" } } },
+      { sku: { product: { name: { contains: query.search, mode: "insensitive" } } } },
+    ];
+  }
+
+  const skip = (query.page - 1) * query.limit;
+
+  const [rows, total] = await Promise.all([
+    inventoryRepository.findMany(where, skip, query.limit),
+    inventoryRepository.count(where),
+  ]);
+
+  return { items: rows.map(withAvailable), total };
 }

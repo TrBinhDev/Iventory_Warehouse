@@ -1,4 +1,17 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
+
+// Field join tối thiểu cho màn danh sách — chỉ lấy đủ để hiển thị bảng,
+// không kéo images/description/attributes cho nhẹ payload khi trả nhiều dòng
+const LIST_INCLUDE = {
+  warehouse: { select: { code: true, name: true } },
+  sku: {
+    select: {
+      skuCode: true,
+      product: { select: { id: true, name: true } },
+    },
+  },
+} satisfies Prisma.InventoryInclude;
 
 // Tìm dòng tồn theo cặp kho + SKU — dùng check trùng trước khi khởi tạo
 export function findByWarehouseAndSku(warehouseId: string, skuId: string) {
@@ -15,6 +28,23 @@ export function findWarehouseById(id: string) {
 // Check SKU tồn tại trước khi khởi tạo dòng tồn
 export function findSkuById(id: string) {
   return prisma.sKU.findUnique({ where: { id } });
+}
+
+// Lấy danh sách tồn kho theo filter, có phân trang.
+// Sắp xếp theo mã kho rồi mã SKU để tra cứu dễ (thứ tự tạo dòng tồn không có ý nghĩa với người xem)
+export function findMany(where: Prisma.InventoryWhereInput, skip: number, take: number) {
+  return prisma.inventory.findMany({
+    where,
+    skip,
+    take,
+    include: LIST_INCLUDE,
+    orderBy: [{ warehouse: { code: "asc" } }, { sku: { skuCode: "asc" } }],
+  });
+}
+
+// Đếm tổng số dòng tồn khớp filter — dùng cho meta phân trang
+export function count(where: Prisma.InventoryWhereInput) {
+  return prisma.inventory.count({ where });
 }
 
 // Khởi tạo dòng tồn kho mới với số lượng 0 (chỉ INSERT, không đụng số lượng nên không cần transaction/lock)
