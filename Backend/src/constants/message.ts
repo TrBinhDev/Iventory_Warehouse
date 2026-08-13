@@ -111,5 +111,9 @@ export const Message = {
     },
     WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
     SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Manager chỉ được thao tác trên kho mình quản lý",
+    },
   },
 } as const;

@@ -11,7 +11,7 @@ const router = Router();
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "WAREHOUSE_MANAGER"),
   validate(createInventorySchema, "body"),
   asyncHandler(inventoryController.createInventory)
 );
