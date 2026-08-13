@@ -84,4 +84,12 @@ router.patch(
   asyncHandler(productController.updateSku)
 );
 
+router.delete(
+  "/:productId/skus/:skuId",
+  authenticate,
+  authorize("ADMIN"),
+  validate(productSkuParamSchema, "params"),
+  asyncHandler(productController.deleteSku)
+);
+
 export { router as productRouter };

@@ -275,3 +275,29 @@ export async function updateSku(productId: string, skuId: string, input: UpdateS
     status: input.status,
   });
 }
+
+// Xoá hẳn SKU — Admin only, chỉ cho xoá khi chưa có gì tham chiếu.
+// Check SKU đúng thuộc productId trước (404 nếu không) như các API SKU khác, để không cho
+// xoá chéo sản phẩm qua đường dẫn lồng nhau.
+export async function deleteSku(productId: string, skuId: string) {
+  const existingSku = await productRepository.findSkuById(skuId);
+  if (!existingSku || existingSku.productId !== productId) {
+    throw new NotFoundError(Message.PRODUCT.SKU_NOT_FOUND.message, Message.PRODUCT.SKU_NOT_FOUND.code);
+  }
+
+  const counts = await productRepository.countSkuReferences(skuId);
+  assertNoReferences(
+    [
+      { resource: "inventory", label: "dòng tồn kho", count: counts.inventory },
+      { resource: "reservationItem", label: "dòng phiếu giữ chỗ", count: counts.reservationItem },
+      { resource: "salesOrderItem", label: "dòng đơn hàng", count: counts.salesOrderItem },
+      { resource: "inboundItem", label: "dòng phiếu nhập", count: counts.inboundItem },
+      { resource: "outboundItem", label: "dòng phiếu xuất", count: counts.outboundItem },
+      { resource: "transferItem", label: "dòng phiếu chuyển kho", count: counts.transferItem },
+      { resource: "adjustmentItem", label: "dòng phiếu điều chỉnh", count: counts.adjustmentItem },
+    ],
+    Message.PRODUCT.SKU_IN_USE
+  );
+
+  await productRepository.deleteSku(skuId);
+}

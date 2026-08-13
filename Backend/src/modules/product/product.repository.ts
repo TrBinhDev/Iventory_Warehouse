@@ -117,6 +117,36 @@ export function createSku(data: {
   return prisma.sKU.create({ data });
 }
 
+// Đếm mọi thứ còn tham chiếu tới SKU này — dùng để chặn xoá.
+// SKU bị tham chiếu bởi tồn kho và item của cả 5 loại phiếu, nên soát 7 bảng, chạy song song.
+export async function countSkuReferences(skuId: string) {
+  const [inventory, reservationItem, salesOrderItem, inboundItem, outboundItem, transferItem, adjustmentItem] =
+    await Promise.all([
+      prisma.inventory.count({ where: { skuId } }),
+      prisma.reservationItem.count({ where: { skuId } }),
+      prisma.salesOrderItem.count({ where: { skuId } }),
+      prisma.inboundItem.count({ where: { skuId } }),
+      prisma.outboundItem.count({ where: { skuId } }),
+      prisma.transferItem.count({ where: { skuId } }),
+      prisma.inventoryAdjustmentItem.count({ where: { skuId } }),
+    ]);
+
+  return {
+    inventory,
+    reservationItem,
+    salesOrderItem,
+    inboundItem,
+    outboundItem,
+    transferItem,
+    adjustmentItem,
+  };
+}
+
+// Xoá hẳn SKU — chỉ gọi khi đã chắc không còn gì tham chiếu
+export function deleteSku(id: string) {
+  return prisma.sKU.delete({ where: { id } });
+}
+
 // Sửa SKU (partial update)
 export function updateSku(
   id: string,

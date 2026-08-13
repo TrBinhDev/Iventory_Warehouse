@@ -74,3 +74,10 @@ export async function updateSku(req: Request, res: Response): Promise<void> {
   const sku = await productService.updateSku(productId, skuId, req.body);
   sendSuccess(res, HttpStatus.OK, sku);
 }
+
+// Xử lý request xoá SKU
+export async function deleteSku(req: Request, res: Response): Promise<void> {
+  const { productId, skuId } = req.params as unknown as ProductSkuParam;
+  await productService.deleteSku(productId, skuId);
+  sendSuccess(res, HttpStatus.OK, { id: skuId });
+}
