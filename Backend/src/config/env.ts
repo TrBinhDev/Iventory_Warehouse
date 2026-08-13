@@ -15,6 +15,14 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY không được để trống'),
   RESEND_FROM_EMAIL: z.string().email('RESEND_FROM_EMAIL phải là email hợp lệ'),
   CLIENT_APP_URL: z.string().url('CLIENT_APP_URL phải là URL hợp lệ'),
+
+  // Cloudflare R2 — tương thích API S3 nên dùng chung @aws-sdk/client-s3
+  R2_ACCOUNT_ID: z.string().min(1, 'R2_ACCOUNT_ID không được để trống'),
+  R2_ACCESS_KEY_ID: z.string().min(1, 'R2_ACCESS_KEY_ID không được để trống'),
+  R2_SECRET_ACCESS_KEY: z.string().min(1, 'R2_SECRET_ACCESS_KEY không được để trống'),
+  R2_BUCKET: z.string().min(1, 'R2_BUCKET không được để trống'),
+  // URL công khai để đọc file (public bucket hoặc custom domain) — đây là phần đầu của URL lưu vào DB
+  R2_PUBLIC_URL: z.string().url('R2_PUBLIC_URL phải là URL hợp lệ'),
 });
 
 const parsed = envSchema.safeParse(process.env);
