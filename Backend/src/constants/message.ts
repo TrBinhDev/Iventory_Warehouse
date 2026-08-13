@@ -102,4 +102,14 @@ export const Message = {
       message: "Barcode đã tồn tại",
     },
   },
+
+  INVENTORY: {
+    NOT_FOUND: { code: "INVENTORY_NOT_FOUND", message: "Không tìm thấy dòng tồn kho" },
+    ALREADY_EXISTS: {
+      code: "INVENTORY_ALREADY_EXISTS",
+      message: "Kho này đã có dòng tồn kho cho SKU này",
+    },
+    WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+  },
 } as const;
