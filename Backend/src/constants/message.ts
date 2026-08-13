@@ -86,6 +86,10 @@ export const Message = {
       code: "CATEGORY_CODE_ALREADY_EXISTS",
       message: "Mã loại sản phẩm đã tồn tại",
     },
+    IN_USE: {
+      code: "CATEGORY_IN_USE",
+      message: "Không thể xoá loại sản phẩm vì đang được sử dụng",
+    },
   },
 
   PRODUCT: {

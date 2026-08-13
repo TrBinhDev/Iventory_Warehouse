@@ -66,3 +66,23 @@ export async function updateCategory(id: string, input: UpdateCategoryInput) {
 
   return categoryRepository.updateCategory(id, input);
 }
+
+// Xoá hẳn loại sản phẩm — Admin only, chỉ cho xoá khi chưa gán cho sản phẩm nào.
+// Đếm trước rồi mới xoá (thay vì xoá rồi bắt lỗi) để báo được vướng ở đâu, bao nhiêu.
+// Riêng category còn một lý do nữa: ProductCategory để onDelete Cascade nên nếu không tự chặn
+// thì Prisma xoá luôn mà không báo, sản phẩm mất phân loại mà không ai biết.
+export async function deleteCategory(id: string) {
+  const existing = await categoryRepository.findById(id);
+  if (!existing) {
+    throw new NotFoundError(Message.CATEGORY.NOT_FOUND.message, Message.CATEGORY.NOT_FOUND.code);
+  }
+
+  const productCount = await categoryRepository.countProductLinks(id);
+  if (productCount > 0) {
+    throw new ConflictError(Message.CATEGORY.IN_USE.message, Message.CATEGORY.IN_USE.code, [
+      { resource: "product", label: "sản phẩm", count: productCount },
+    ]);
+  }
+
+  await categoryRepository.deleteCategory(id);
+}

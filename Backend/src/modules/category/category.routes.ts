@@ -42,4 +42,12 @@ router.patch(
   asyncHandler(categoryController.updateCategory)
 );
 
+router.delete(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(categoryIdParamSchema, "params"),
+  asyncHandler(categoryController.deleteCategory)
+);
+
 export { router as categoryRouter };

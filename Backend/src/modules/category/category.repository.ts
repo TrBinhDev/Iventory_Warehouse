@@ -35,3 +35,15 @@ export function count(where: Prisma.CategoryWhereInput) {
 export function createCategory(data: { code: string; name: string }) {
   return prisma.category.create({ data });
 }
+
+// Đếm số sản phẩm đang gán loại này — dùng để chặn xoá.
+// Lưu ý: ProductCategory có onDelete Cascade nên nếu không tự chặn thì Prisma sẽ âm thầm
+// gỡ loại khỏi mọi sản phẩm mà không báo gì.
+export function countProductLinks(categoryId: string) {
+  return prisma.productCategory.count({ where: { categoryId } });
+}
+
+// Xoá hẳn loại sản phẩm — chỉ gọi khi đã chắc không còn sản phẩm nào gán
+export function deleteCategory(id: string) {
+  return prisma.category.delete({ where: { id } });
+}

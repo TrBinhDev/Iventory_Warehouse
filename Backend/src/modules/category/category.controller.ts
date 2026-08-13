@@ -34,3 +34,12 @@ export async function updateCategory(req: Request, res: Response): Promise<void>
   const category = await categoryService.updateCategory(id, req.body);
   sendSuccess(res, HttpStatus.OK, category);
 }
+
+// Xử lý request xoá category
+// Trả 200 kèm { id } thay vì 204 rỗng: giữ đúng format JSend của dự án để frontend
+// check success đồng nhất ở mọi endpoint, đồng thời xác nhận rõ đã xoá bản ghi nào
+export async function deleteCategory(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as CategoryIdParam;
+  await categoryService.deleteCategory(id);
+  sendSuccess(res, HttpStatus.OK, { id });
+}
