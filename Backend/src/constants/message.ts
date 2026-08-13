@@ -70,6 +70,7 @@ export const Message = {
   WAREHOUSE: {
     NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
     CODE_ALREADY_EXISTS: { code: "WAREHOUSE_CODE_ALREADY_EXISTS", message: "Mã kho đã tồn tại" },
+    IN_USE: { code: "WAREHOUSE_IN_USE", message: "Không thể xoá kho vì đang được sử dụng" },
   },
 
   SUPPLIER: {

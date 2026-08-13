@@ -34,3 +34,10 @@ export async function updateWarehouse(req: Request, res: Response): Promise<void
   const warehouse = await warehouseService.updateWarehouse(id, req.body);
   sendSuccess(res, HttpStatus.OK, warehouse);
 }
+
+// Xử lý request xoá kho
+export async function deleteWarehouse(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as WarehouseIdParam;
+  await warehouseService.deleteWarehouse(id);
+  sendSuccess(res, HttpStatus.OK, { id });
+}

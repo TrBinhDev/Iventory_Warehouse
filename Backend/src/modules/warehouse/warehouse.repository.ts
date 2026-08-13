@@ -40,3 +40,29 @@ export function createWarehouse(data: {
 }) {
   return prisma.warehouse.create({ data });
 }
+
+// Đếm mọi thứ còn tham chiếu tới kho này — dùng để chặn xoá.
+// Transfer đếm cả 2 chiều (kho nguồn và kho đích) vì phiếu chuyển kho trỏ tới 2 kho khác nhau.
+// 8 truy vấn độc lập nên chạy song song.
+export async function countReferences(warehouseId: string) {
+  const [user, inventory, reservation, salesOrder, inbound, outbound, transfer, adjustment] =
+    await Promise.all([
+      prisma.user.count({ where: { warehouseId } }),
+      prisma.inventory.count({ where: { warehouseId } }),
+      prisma.reservation.count({ where: { warehouseId } }),
+      prisma.salesOrder.count({ where: { warehouseId } }),
+      prisma.inbound.count({ where: { warehouseId } }),
+      prisma.outbound.count({ where: { warehouseId } }),
+      prisma.transfer.count({
+        where: { OR: [{ fromWarehouseId: warehouseId }, { toWarehouseId: warehouseId }] },
+      }),
+      prisma.inventoryAdjustment.count({ where: { warehouseId } }),
+    ]);
+
+  return { user, inventory, reservation, salesOrder, inbound, outbound, transfer, adjustment };
+}
+
+// Xoá hẳn kho — chỉ gọi khi đã chắc không còn gì tham chiếu
+export function deleteWarehouse(id: string) {
+  return prisma.warehouse.delete({ where: { id } });
+}

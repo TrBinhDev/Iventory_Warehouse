@@ -42,4 +42,12 @@ router.patch(
   asyncHandler(warehouseController.updateWarehouse)
 );
 
+router.delete(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(warehouseIdParamSchema, "params"),
+  asyncHandler(warehouseController.deleteWarehouse)
+);
+
 export { router as warehouseRouter };
