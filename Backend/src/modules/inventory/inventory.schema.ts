@@ -20,3 +20,10 @@ export const listInventoriesQuerySchema = z.object({
 });
 
 export type ListInventoriesQuery = z.infer<typeof listInventoriesQuerySchema>;
+
+// Param :id cho GET /inventories/:id
+export const inventoryIdParamSchema = z.object({
+  id: z.string().uuid("id không hợp lệ"),
+});
+
+export type InventoryIdParam = z.infer<typeof inventoryIdParamSchema>;

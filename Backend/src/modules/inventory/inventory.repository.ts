@@ -13,6 +13,33 @@ const LIST_INCLUDE = {
   },
 } satisfies Prisma.InventoryInclude;
 
+// Field join đầy đủ cho màn chi tiết — chỉ 1 dòng nên trả đủ để xem kỹ
+const DETAIL_INCLUDE = {
+  warehouse: { select: { code: true, name: true, address: true, status: true } },
+  sku: {
+    select: {
+      skuCode: true,
+      barcode: true,
+      attributes: true,
+      price: true,
+      cost: true,
+      weight: true,
+      status: true,
+      product: {
+        select: { id: true, code: true, name: true, unit: true, description: true, images: true },
+      },
+    },
+  },
+} satisfies Prisma.InventoryInclude;
+
+// Tìm dòng tồn theo id, kèm đầy đủ thông tin kho/SKU/sản phẩm
+export function findById(id: string) {
+  return prisma.inventory.findUnique({
+    where: { id },
+    include: DETAIL_INCLUDE,
+  });
+}
+
 // Tìm dòng tồn theo cặp kho + SKU — dùng check trùng trước khi khởi tạo
 export function findByWarehouseAndSku(warehouseId: string, skuId: string) {
   return prisma.inventory.findUnique({

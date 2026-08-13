@@ -3,7 +3,11 @@ import { authenticate } from "../../middlewares/authenticate.js";
 import { authorize } from "../../middlewares/authorize.js";
 import { validate } from "../../middlewares/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-import { createInventorySchema, listInventoriesQuerySchema } from "./inventory.schema.js";
+import {
+  createInventorySchema,
+  listInventoriesQuerySchema,
+  inventoryIdParamSchema,
+} from "./inventory.schema.js";
 import * as inventoryController from "./inventory.controller.js";
 
 const router = Router();
@@ -22,6 +26,14 @@ router.get(
   authorize("ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"),
   validate(listInventoriesQuerySchema, "query"),
   asyncHandler(inventoryController.listInventories)
+);
+
+router.get(
+  "/:id",
+  authenticate,
+  authorize("ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"),
+  validate(inventoryIdParamSchema, "params"),
+  asyncHandler(inventoryController.getInventoryById)
 );
 
 export { router as inventoryRouter };

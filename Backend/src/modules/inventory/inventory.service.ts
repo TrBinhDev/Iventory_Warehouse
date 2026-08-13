@@ -5,6 +5,15 @@ import { withAvailable } from "../../utils/inventory.util.js";
 import * as inventoryRepository from "./inventory.repository.js";
 import type { CreateInventoryInput, ListInventoriesQuery } from "./inventory.schema.js";
 
+// Manager/Staff chỉ được đụng dòng tồn thuộc kho mình. Trả NotFound (không phải Forbidden)
+// để không lộ ra rằng dòng đó có tồn tại ở kho khác — cùng cách làm với module user.
+function assertCanAccess(actor: Actor, warehouseId: string) {
+  if (actor.role === "ADMIN") return;
+  if (actor.warehouseId !== warehouseId) {
+    throw new NotFoundError(Message.INVENTORY.NOT_FOUND.message, Message.INVENTORY.NOT_FOUND.code);
+  }
+}
+
 interface Actor {
   id: string;
   role: UserRole;
@@ -85,4 +94,16 @@ export async function listInventories(actor: Actor, query: ListInventoriesQuery)
   ]);
 
   return { items: rows.map(withAvailable), total };
+}
+
+// Xem chi tiết 1 dòng tồn kho — Manager/Staff chỉ xem được dòng thuộc kho mình
+export async function getInventoryById(actor: Actor, id: string) {
+  const inventory = await inventoryRepository.findById(id);
+  if (!inventory) {
+    throw new NotFoundError(Message.INVENTORY.NOT_FOUND.message, Message.INVENTORY.NOT_FOUND.code);
+  }
+
+  assertCanAccess(actor, inventory.warehouseId);
+
+  return withAvailable(inventory);
 }
