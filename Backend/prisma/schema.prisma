@@ -173,10 +173,15 @@ model Product {
 
 model ProductCategory {
   productId   String    @db.Uuid
+  // CASCADE duy nhất còn lại trong schema, và là có chủ ý: dòng gán thuộc về chính sản phẩm,
+  // xoá sản phẩm thì gán mất theo. DELETE /products/:id dựa vào đây để dọn (không tự đếm).
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   categoryId  String    @db.Uuid
-  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  // Restrict (không phải Cascade): xoá loại sản phẩm là đụng dữ liệu của bản ghi KHÁC —
+  // để Cascade thì xoá 1 loại sẽ âm thầm gỡ phân loại của hàng chục sản phẩm mà không ai báo.
+  // DELETE /categories/:id đã chặn ở service, đây là lớp đỡ phía dưới.
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   createdAt   DateTime  @default(now())
 

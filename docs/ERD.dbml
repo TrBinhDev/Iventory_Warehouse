@@ -471,7 +471,7 @@ Ref: User.warehouseId > Warehouse.id [delete: Restrict]
 
 Ref: ProductCategory.productId > Product.id [delete: Cascade]
 
-Ref: ProductCategory.categoryId > Category.id [delete: Cascade]
+Ref: ProductCategory.categoryId > Category.id [delete: Restrict]
 
 Ref: SKU.productId > Product.id
 
