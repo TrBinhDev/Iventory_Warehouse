@@ -27,3 +27,10 @@ export const inventoryIdParamSchema = z.object({
 });
 
 export type InventoryIdParam = z.infer<typeof inventoryIdParamSchema>;
+
+// Query cho API public xem SKU còn hàng ở kho nào (trang khách)
+export const availabilityQuerySchema = z.object({
+  skuId: z.string().uuid("skuId không hợp lệ"),
+});
+
+export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;

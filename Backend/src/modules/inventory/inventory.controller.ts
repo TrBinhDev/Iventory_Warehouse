@@ -2,7 +2,11 @@ import type { Request, Response } from "express";
 import { HttpStatus } from "../../constants/httpStatus.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as inventoryService from "./inventory.service.js";
-import type { InventoryIdParam, ListInventoriesQuery } from "./inventory.schema.js";
+import type {
+  AvailabilityQuery,
+  InventoryIdParam,
+  ListInventoriesQuery,
+} from "./inventory.schema.js";
 
 // Xử lý request khởi tạo dòng tồn kho cho 1 cặp kho + SKU
 export async function createInventory(req: Request, res: Response): Promise<void> {
@@ -19,6 +23,13 @@ export async function listInventories(req: Request, res: Response): Promise<void
     limit: query.limit,
     total,
   });
+}
+
+// Xử lý request public xem SKU còn hàng ở kho nào
+export async function getAvailability(req: Request, res: Response): Promise<void> {
+  const query = req.query as unknown as AvailabilityQuery;
+  const availability = await inventoryService.getAvailability(query);
+  sendSuccess(res, HttpStatus.OK, availability);
 }
 
 // Xử lý request xem chi tiết 1 dòng tồn kho

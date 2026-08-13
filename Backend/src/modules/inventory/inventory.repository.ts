@@ -57,6 +57,38 @@ export function findSkuById(id: string) {
   return prisma.sKU.findUnique({ where: { id } });
 }
 
+// Lấy SKU kèm trạng thái sản phẩm — dùng cho API public, để không chào bán SKU/sản phẩm đã ngừng kinh doanh
+export function findSkuWithProductStatus(id: string) {
+  return prisma.sKU.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      skuCode: true,
+      status: true,
+      product: { select: { status: true } },
+    },
+  });
+}
+
+// Lấy tồn kho của 1 SKU ở tất cả kho đang hoạt động — phục vụ API public.
+// Không lọc available > 0 và không sắp xếp ở đây được: available là số tính runtime,
+// Prisma không so sánh được 2 cột với nhau trong where, cũng không orderBy theo biểu thức.
+// Số kho chỉ cỡ vài chục dòng nên lọc/sắp xếp ở tầng service không đáng kể.
+export function findAvailabilityBySkuId(skuId: string) {
+  return prisma.inventory.findMany({
+    where: {
+      skuId,
+      warehouse: { status: "ACTIVE" },
+    },
+    select: {
+      warehouseId: true,
+      quantityOnHand: true,
+      quantityReserved: true,
+      warehouse: { select: { name: true, address: true } },
+    },
+  });
+}
+
 // Lấy danh sách tồn kho theo filter, có phân trang.
 // Sắp xếp theo mã kho rồi mã SKU để tra cứu dễ (thứ tự tạo dòng tồn không có ý nghĩa với người xem)
 export function findMany(where: Prisma.InventoryWhereInput, skip: number, take: number) {

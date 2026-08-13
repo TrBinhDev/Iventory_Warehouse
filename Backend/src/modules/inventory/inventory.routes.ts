@@ -7,6 +7,7 @@ import {
   createInventorySchema,
   listInventoriesQuerySchema,
   inventoryIdParamSchema,
+  availabilityQuerySchema,
 } from "./inventory.schema.js";
 import * as inventoryController from "./inventory.controller.js";
 
@@ -26,6 +27,14 @@ router.get(
   authorize("ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"),
   validate(listInventoriesQuerySchema, "query"),
   asyncHandler(inventoryController.listInventories)
+);
+
+// PHẢI khai báo trước "/:id" — Express khớp route theo thứ tự, để sau thì "availability"
+// bị hiểu nhầm thành giá trị của :id rồi rớt ở bước validate UUID
+router.get(
+  "/availability",
+  validate(availabilityQuerySchema, "query"),
+  asyncHandler(inventoryController.getAvailability)
 );
 
 router.get(

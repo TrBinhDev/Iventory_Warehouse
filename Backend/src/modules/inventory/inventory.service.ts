@@ -3,7 +3,11 @@ import { ConflictError, ForbiddenError, NotFoundError } from "../../errors/appEr
 import { Message } from "../../constants/message.js";
 import { withAvailable } from "../../utils/inventory.util.js";
 import * as inventoryRepository from "./inventory.repository.js";
-import type { CreateInventoryInput, ListInventoriesQuery } from "./inventory.schema.js";
+import type {
+  AvailabilityQuery,
+  CreateInventoryInput,
+  ListInventoriesQuery,
+} from "./inventory.schema.js";
 
 // Manager/Staff chỉ được đụng dòng tồn thuộc kho mình. Trả NotFound (không phải Forbidden)
 // để không lộ ra rằng dòng đó có tồn tại ở kho khác — cùng cách làm với module user.
@@ -106,4 +110,37 @@ export async function getInventoryById(actor: Actor, id: string) {
   assertCanAccess(actor, inventory.warehouseId);
 
   return withAvailable(inventory);
+}
+
+// API public (trang khách): SKU này còn đặt được bao nhiêu, ở kho nào.
+// Chỉ trả available — KHÔNG lộ onHand/reserved vì đó là số nội bộ (đối thủ suy ra được
+// lượng hàng và tốc độ bán). Không trả tổng các kho vì Reservation chỉ giữ chỗ từ 1 kho,
+// không gom chéo kho, nên con số tổng là con số nghiệp vụ không dùng được.
+export async function getAvailability(query: AvailabilityQuery) {
+  const sku = await inventoryRepository.findSkuWithProductStatus(query.skuId);
+  if (!sku) {
+    throw new NotFoundError(
+      Message.INVENTORY.SKU_NOT_FOUND.message,
+      Message.INVENTORY.SKU_NOT_FOUND.code
+    );
+  }
+
+  // SKU hoặc sản phẩm đã ngừng kinh doanh: vẫn trả 200 (SKU có thật) nhưng không chào bán ở đâu cả
+  if (sku.status !== "ACTIVE" || sku.product.status !== "ACTIVE") {
+    return { skuId: sku.id, skuCode: sku.skuCode, warehouses: [] };
+  }
+
+  const rows = await inventoryRepository.findAvailabilityBySkuId(query.skuId);
+
+  const warehouses = rows
+    .map((row) => ({
+      warehouseId: row.warehouseId,
+      name: row.warehouse.name,
+      address: row.warehouse.address,
+      available: row.quantityOnHand - row.quantityReserved,
+    }))
+    .filter((warehouse) => warehouse.available > 0)
+    .sort((a, b) => b.available - a.available);
+
+  return { skuId: sku.id, skuCode: sku.skuCode, warehouses };
 }
