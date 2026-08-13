@@ -116,4 +116,15 @@ export const Message = {
       message: "Manager chỉ được thao tác trên kho mình quản lý",
     },
   },
+
+  UPLOAD: {
+    NO_FILE: { code: "NO_FILE", message: "Chưa chọn file nào để tải lên" },
+    INVALID_FILE_TYPE: {
+      code: "INVALID_FILE_TYPE",
+      message: "Chỉ chấp nhận ảnh định dạng JPEG, PNG hoặc WEBP",
+    },
+    FILE_TOO_LARGE: { code: "FILE_TOO_LARGE", message: "Mỗi ảnh tối đa 5MB" },
+    TOO_MANY_FILES: { code: "TOO_MANY_FILES", message: "Tối đa 10 ảnh mỗi lần tải lên" },
+    UPLOAD_FAILED: { code: "UPLOAD_FAILED", message: "Tải ảnh lên thất bại, vui lòng thử lại" },
+  },
 } as const;
