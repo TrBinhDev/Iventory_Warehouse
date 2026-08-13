@@ -1,9 +1,8 @@
 import { randomUUID } from "crypto";
-import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2, R2_BUCKET, buildPublicUrl, extractKeyFromUrl } from "../../config/r2.js";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { r2, R2_BUCKET, buildPublicUrl } from "../../config/r2.js";
 import { BadRequestError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
-import { logger } from "../../config/logger.js";
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -45,21 +44,3 @@ export async function uploadImages(files: Express.Multer.File[]) {
   return uploaded;
 }
 
-// Xoá file khỏi R2 theo URL đã lưu trong DB — best-effort.
-// KHÔNG throw: lúc gọi hàm này thì DB đã cập nhật xong, xoá hụt chỉ để lại file thừa vô hại,
-// còn ném lỗi ra sẽ làm hỏng response của một thao tác thực chất đã thành công.
-export async function deleteByUrls(urls: string[]): Promise<void> {
-  await Promise.all(
-    urls.map(async (url) => {
-      // URL không thuộc bucket của mình (VD ảnh dán link ngoài vào) thì bỏ qua
-      const key = extractKeyFromUrl(url);
-      if (!key) return;
-
-      try {
-        await r2.send(new DeleteObjectCommand({ Bucket: R2_BUCKET, Key: key }));
-      } catch (error) {
-        logger.error(`Không xoá được file trên R2: ${key}`, error);
-      }
-    })
-  );
-}

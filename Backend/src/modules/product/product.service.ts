@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { BadRequestError, ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { deleteFilesByUrls, findRemovedUrls } from "../../utils/storage.util.js";
 import * as productRepository from "./product.repository.js";
 import type {
   CreateProductInput,
@@ -147,6 +148,16 @@ export async function updateProduct(id: string, input: UpdateProductInput) {
     status: input.status,
     categoryIds,
   });
+
+  // Ảnh bị gỡ khỏi mảng thì xoá luôn file trên R2, tránh tích rác.
+  // Gọi SAU khi DB đã cập nhật xong — xoá hụt chỉ để lại file thừa, còn xoá trước mà DB fail
+  // thì ảnh mất trong khi bản ghi vẫn trỏ tới. Chỉ chạy khi client thực sự gửi field images.
+  if (input.images !== undefined) {
+    const removed = findRemovedUrls(existingProduct.images, input.images);
+    if (removed.length > 0) {
+      await deleteFilesByUrls(removed);
+    }
+  }
 
   return toProductResponse(product);
 }

@@ -4,6 +4,7 @@ import { redis } from "../../config/redis.js";
 import { logger } from "../../config/logger.js";
 import { hashPassword, comparePassword } from "../../utils/hash.util.js";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../../utils/mailer.util.js";
+import { deleteFilesByUrls } from "../../utils/storage.util.js";
 import {
   signAccessToken,
   signRefreshToken,
@@ -249,11 +250,18 @@ export async function updateMe(userId: string, input: UpdateMeInput) {
     throw new UnauthorizedError(Message.COMMON.TOKEN_INVALID.message, Message.COMMON.TOKEN_INVALID.code);
   }
 
-  return authRepository.updateProfile(userId, {
+  const updated = await authRepository.updateProfile(userId, {
     fullName: input.fullName,
     phone: input.phone,
     avatarUrl: input.avatarUrl,
   });
+
+  // Đổi hoặc gỡ avatar thì xoá ảnh cũ trên R2 (gọi sau khi DB xong, best-effort)
+  if (input.avatarUrl !== undefined && user.avatarUrl && user.avatarUrl !== input.avatarUrl) {
+    await deleteFilesByUrls([user.avatarUrl]);
+  }
+
+  return updated;
 }
 
 // Yêu cầu đặt lại mật khẩu: sinh token + gửi email nếu email tồn tại, im lặng bỏ qua nếu không

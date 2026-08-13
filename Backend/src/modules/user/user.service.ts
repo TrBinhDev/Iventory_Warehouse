@@ -7,6 +7,7 @@ import {
   NotFoundError,
 } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { deleteFilesByUrls } from "../../utils/storage.util.js";
 import * as userRepository from "./user.repository.js";
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from "./user.schema.js";
 
@@ -141,7 +142,7 @@ export async function updateUser(actor: Actor, id: string, input: UpdateUserInpu
     }
   }
 
-  return userRepository.updateUser(id, {
+  const updated = await userRepository.updateUser(id, {
     fullName: input.fullName,
     phone: input.phone,
     avatarUrl: input.avatarUrl,
@@ -150,4 +151,11 @@ export async function updateUser(actor: Actor, id: string, input: UpdateUserInpu
     role: input.role,
     warehouseId: input.warehouseId,
   });
+
+  // Đổi avatar thì xoá ảnh cũ trên R2 (gọi sau khi DB xong, best-effort)
+  if (input.avatarUrl !== undefined && target.avatarUrl && target.avatarUrl !== input.avatarUrl) {
+    await deleteFilesByUrls([target.avatarUrl]);
+  }
+
+  return updated;
 }
