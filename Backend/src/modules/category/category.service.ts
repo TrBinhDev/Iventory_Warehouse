@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { assertNoReferences } from "../../utils/reference.util.js";
 import * as categoryRepository from "./category.repository.js";
 import type {
   CreateCategoryInput,
@@ -78,11 +79,10 @@ export async function deleteCategory(id: string) {
   }
 
   const productCount = await categoryRepository.countProductLinks(id);
-  if (productCount > 0) {
-    throw new ConflictError(Message.CATEGORY.IN_USE.message, Message.CATEGORY.IN_USE.code, [
-      { resource: "product", label: "sản phẩm", count: productCount },
-    ]);
-  }
+  assertNoReferences(
+    [{ resource: "product", label: "sản phẩm", count: productCount }],
+    Message.CATEGORY.IN_USE
+  );
 
   await categoryRepository.deleteCategory(id);
 }

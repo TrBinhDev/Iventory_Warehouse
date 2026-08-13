@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { assertNoReferences } from "../../utils/reference.util.js";
 import * as supplierRepository from "./supplier.repository.js";
 import type {
   CreateSupplierInput,
@@ -74,18 +75,13 @@ export async function deleteSupplier(id: string) {
   }
 
   const { inbound, outbound } = await supplierRepository.countReferences(id);
-  const blockers = [
-    { resource: "inbound", label: "phiếu nhập", count: inbound },
-    { resource: "outbound", label: "phiếu xuất", count: outbound },
-  ].filter((item) => item.count > 0);
-
-  if (blockers.length > 0) {
-    throw new ConflictError(
-      Message.SUPPLIER.IN_USE.message,
-      Message.SUPPLIER.IN_USE.code,
-      blockers
-    );
-  }
+  assertNoReferences(
+    [
+      { resource: "inbound", label: "phiếu nhập", count: inbound },
+      { resource: "outbound", label: "phiếu xuất", count: outbound },
+    ],
+    Message.SUPPLIER.IN_USE
+  );
 
   await supplierRepository.deleteSupplier(id);
 }

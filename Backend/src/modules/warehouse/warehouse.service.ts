@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { assertNoReferences } from "../../utils/reference.util.js";
 import * as warehouseRepository from "./warehouse.repository.js";
 import type {
   CreateWarehouseInput,
@@ -72,24 +73,19 @@ export async function deleteWarehouse(id: string) {
   }
 
   const counts = await warehouseRepository.countReferences(id);
-  const blockers = [
-    { resource: "user", label: "tài khoản", count: counts.user },
-    { resource: "inventory", label: "dòng tồn kho", count: counts.inventory },
-    { resource: "reservation", label: "phiếu giữ chỗ", count: counts.reservation },
-    { resource: "salesOrder", label: "đơn hàng", count: counts.salesOrder },
-    { resource: "inbound", label: "phiếu nhập", count: counts.inbound },
-    { resource: "outbound", label: "phiếu xuất", count: counts.outbound },
-    { resource: "transfer", label: "phiếu chuyển kho", count: counts.transfer },
-    { resource: "inventoryAdjustment", label: "phiếu điều chỉnh", count: counts.adjustment },
-  ].filter((item) => item.count > 0);
-
-  if (blockers.length > 0) {
-    throw new ConflictError(
-      Message.WAREHOUSE.IN_USE.message,
-      Message.WAREHOUSE.IN_USE.code,
-      blockers
-    );
-  }
+  assertNoReferences(
+    [
+      { resource: "user", label: "tài khoản", count: counts.user },
+      { resource: "inventory", label: "dòng tồn kho", count: counts.inventory },
+      { resource: "reservation", label: "phiếu giữ chỗ", count: counts.reservation },
+      { resource: "salesOrder", label: "đơn hàng", count: counts.salesOrder },
+      { resource: "inbound", label: "phiếu nhập", count: counts.inbound },
+      { resource: "outbound", label: "phiếu xuất", count: counts.outbound },
+      { resource: "transfer", label: "phiếu chuyển kho", count: counts.transfer },
+      { resource: "inventoryAdjustment", label: "phiếu điều chỉnh", count: counts.adjustment },
+    ],
+    Message.WAREHOUSE.IN_USE
+  );
 
   await warehouseRepository.deleteWarehouse(id);
 }

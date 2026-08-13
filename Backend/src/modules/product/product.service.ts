@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { BadRequestError, ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import { deleteFilesByUrls, findRemovedUrls } from "../../utils/storage.util.js";
+import { assertNoReferences } from "../../utils/reference.util.js";
 import * as productRepository from "./product.repository.js";
 import type {
   CreateProductInput,
@@ -191,13 +192,7 @@ export async function deleteProduct(id: string) {
   }
 
   const skuCount = await productRepository.countSkus(id);
-  const blockers = [{ resource: "sku", label: "SKU", count: skuCount }].filter(
-    (item) => item.count > 0
-  );
-
-  if (blockers.length > 0) {
-    throw new ConflictError(Message.PRODUCT.IN_USE.message, Message.PRODUCT.IN_USE.code, blockers);
-  }
+  assertNoReferences([{ resource: "sku", label: "SKU", count: skuCount }], Message.PRODUCT.IN_USE);
 
   await productRepository.deleteProduct(id);
 
