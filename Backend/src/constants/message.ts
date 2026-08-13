@@ -125,6 +125,10 @@ export const Message = {
     },
     FILE_TOO_LARGE: { code: "FILE_TOO_LARGE", message: "Mỗi ảnh tối đa 5MB" },
     TOO_MANY_FILES: { code: "TOO_MANY_FILES", message: "Tối đa 10 ảnh mỗi lần tải lên" },
+    TOTAL_TOO_LARGE: {
+      code: "TOTAL_TOO_LARGE",
+      message: "Tổng dung lượng mỗi lần tải lên tối đa 25MB",
+    },
     UPLOAD_FAILED: { code: "UPLOAD_FAILED", message: "Tải ảnh lên thất bại, vui lòng thử lại" },
   },
 } as const;
