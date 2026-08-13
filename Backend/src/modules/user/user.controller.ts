@@ -34,3 +34,10 @@ export async function updateUser(req: Request, res: Response): Promise<void> {
   const user = await userService.updateUser(req.user!, id, req.body);
   sendSuccess(res, HttpStatus.OK, user);
 }
+
+// Xử lý request xoá tài khoản
+export async function deleteUser(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as UserIdParam;
+  await userService.deleteUser(req.user!, id);
+  sendSuccess(res, HttpStatus.OK, { id });
+}

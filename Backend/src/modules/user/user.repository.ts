@@ -73,3 +73,26 @@ export function createUser(data: {
 export function updateUser(id: string, data: Prisma.UserUncheckedUpdateInput) {
   return prisma.user.update({ where: { id }, data, select: SAFE_USER_SELECT });
 }
+
+// Đếm mọi thứ còn tham chiếu tới tài khoản này — dùng để chặn xoá.
+// User xuất hiện ở 2 vai: khách đặt hàng (Reservation/SalesOrder) và nhân viên tạo phiếu
+// (Inbound/Outbound/Transfer/Adjustment), cộng thêm dấu vết trong audit log InventoryMovement.
+export async function countReferences(userId: string) {
+  const [reservation, salesOrder, inbound, outbound, transfer, adjustment, movement] =
+    await Promise.all([
+      prisma.reservation.count({ where: { customerId: userId } }),
+      prisma.salesOrder.count({ where: { customerId: userId } }),
+      prisma.inbound.count({ where: { createdByUserId: userId } }),
+      prisma.outbound.count({ where: { createdByUserId: userId } }),
+      prisma.transfer.count({ where: { createdByUserId: userId } }),
+      prisma.inventoryAdjustment.count({ where: { createdByUserId: userId } }),
+      prisma.inventoryMovement.count({ where: { createdByUserId: userId } }),
+    ]);
+
+  return { reservation, salesOrder, inbound, outbound, transfer, adjustment, movement };
+}
+
+// Xoá hẳn tài khoản — chỉ gọi khi đã chắc không còn gì tham chiếu
+export function deleteUser(id: string) {
+  return prisma.user.delete({ where: { id } });
+}

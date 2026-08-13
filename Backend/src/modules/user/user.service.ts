@@ -8,6 +8,7 @@ import {
 } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import { deleteFilesByUrls } from "../../utils/storage.util.js";
+import { assertNoReferences } from "../../utils/reference.util.js";
 import * as userRepository from "./user.repository.js";
 import type { CreateUserInput, ListUsersQuery, UpdateUserInput } from "./user.schema.js";
 
@@ -158,4 +159,43 @@ export async function updateUser(actor: Actor, id: string, input: UpdateUserInpu
   }
 
   return updated;
+}
+
+// Xoá hẳn tài khoản — CHỈ Admin (khác với create/update mà Manager cũng làm được):
+// sửa sai còn sửa lại được, xoá là mất luôn. Manager muốn dọn nhân viên nghỉ việc thì
+// chuyển status INACTIVE qua PATCH, việc đó họ vốn đã làm được.
+// Không cho tự xoá chính mình — xoá hết admin thì không ai vào quản trị được nữa.
+export async function deleteUser(actor: Actor, id: string) {
+  const target = await userRepository.findByIdSafe(id);
+  if (!target) {
+    throw new NotFoundError(Message.USER.NOT_FOUND.message, Message.USER.NOT_FOUND.code);
+  }
+
+  if (actor.id === target.id) {
+    throw new BadRequestError(
+      Message.USER.CANNOT_DELETE_SELF.message,
+      Message.USER.CANNOT_DELETE_SELF.code
+    );
+  }
+
+  const counts = await userRepository.countReferences(id);
+  assertNoReferences(
+    [
+      { resource: "reservation", label: "phiếu giữ chỗ", count: counts.reservation },
+      { resource: "salesOrder", label: "đơn hàng", count: counts.salesOrder },
+      { resource: "inbound", label: "phiếu nhập", count: counts.inbound },
+      { resource: "outbound", label: "phiếu xuất", count: counts.outbound },
+      { resource: "transfer", label: "phiếu chuyển kho", count: counts.transfer },
+      { resource: "inventoryAdjustment", label: "phiếu điều chỉnh", count: counts.adjustment },
+      { resource: "inventoryMovement", label: "biến động tồn kho", count: counts.movement },
+    ],
+    Message.USER.IN_USE
+  );
+
+  await userRepository.deleteUser(id);
+
+  // Dọn avatar trên R2 sau khi DB đã xong (best-effort, cùng nguyên tắc với A5)
+  if (target.avatarUrl) {
+    await deleteFilesByUrls([target.avatarUrl]);
+  }
 }

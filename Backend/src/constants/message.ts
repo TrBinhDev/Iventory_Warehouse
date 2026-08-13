@@ -60,6 +60,11 @@ export const Message = {
       code: "CANNOT_CHANGE_OWN_ROLE",
       message: "Không thể tự đổi role của chính mình",
     },
+    IN_USE: { code: "USER_IN_USE", message: "Không thể xoá tài khoản vì đang được sử dụng" },
+    CANNOT_DELETE_SELF: {
+      code: "CANNOT_DELETE_SELF",
+      message: "Không thể tự xoá tài khoản của chính mình",
+    },
     INVALID_ROLE_WAREHOUSE_COMBINATION: {
       code: "INVALID_ROLE_WAREHOUSE_COMBINATION",
       message:

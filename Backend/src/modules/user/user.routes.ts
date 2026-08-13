@@ -46,4 +46,13 @@ router.patch(
   asyncHandler(userController.updateUser)
 );
 
+// CHỈ Admin, khác với 3 route trên (Manager cũng vào được) — xoá là thao tác không hoàn tác được
+router.delete(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(userIdParamSchema, "params"),
+  asyncHandler(userController.deleteUser)
+);
+
 export { router as userRouter };
