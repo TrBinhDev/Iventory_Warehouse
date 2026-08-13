@@ -45,4 +45,12 @@ router.get(
   asyncHandler(inventoryController.getInventoryById)
 );
 
+router.delete(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(inventoryIdParamSchema, "params"),
+  asyncHandler(inventoryController.deleteInventory)
+);
+
 export { router as inventoryRouter };

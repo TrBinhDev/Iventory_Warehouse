@@ -106,6 +106,17 @@ export function count(where: Prisma.InventoryWhereInput) {
   return prisma.inventory.count({ where });
 }
 
+// Đếm số biến động đã ghi cho dòng tồn này — dùng để chặn xoá.
+// Có biến động nghĩa là dòng tồn đã từng được dùng thật (nhập/xuất/giữ chỗ), xoá đi là mất lịch sử.
+export function countMovements(inventoryId: string) {
+  return prisma.inventoryMovement.count({ where: { inventoryId } });
+}
+
+// Xoá hẳn dòng tồn kho — chỉ gọi khi đã chắc chưa có biến động nào
+export function deleteInventory(id: string) {
+  return prisma.inventory.delete({ where: { id } });
+}
+
 // Khởi tạo dòng tồn kho mới với số lượng 0 (chỉ INSERT, không đụng số lượng nên không cần transaction/lock)
 export function createInventory(data: { warehouseId: string; skuId: string }) {
   return prisma.inventory.create({

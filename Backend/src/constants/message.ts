@@ -126,6 +126,10 @@ export const Message = {
       code: "FORBIDDEN_WAREHOUSE",
       message: "Manager chỉ được thao tác trên kho mình quản lý",
     },
+    IN_USE: {
+      code: "INVENTORY_IN_USE",
+      message: "Không thể xoá dòng tồn kho vì đã có lịch sử biến động",
+    },
   },
 
   UPLOAD: {

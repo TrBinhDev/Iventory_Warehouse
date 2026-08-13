@@ -38,3 +38,10 @@ export async function getInventoryById(req: Request, res: Response): Promise<voi
   const inventory = await inventoryService.getInventoryById(req.user!, id);
   sendSuccess(res, HttpStatus.OK, inventory);
 }
+
+// Xử lý request xoá dòng tồn kho
+export async function deleteInventory(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as InventoryIdParam;
+  await inventoryService.deleteInventory(id);
+  sendSuccess(res, HttpStatus.OK, { id });
+}

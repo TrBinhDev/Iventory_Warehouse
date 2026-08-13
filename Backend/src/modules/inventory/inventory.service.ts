@@ -2,6 +2,7 @@ import type { Prisma, UserRole } from "@prisma/client";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
 import { withAvailable } from "../../utils/inventory.util.js";
+import { assertNoReferences } from "../../utils/reference.util.js";
 import * as inventoryRepository from "./inventory.repository.js";
 import type {
   AvailabilityQuery,
@@ -110,6 +111,24 @@ export async function getInventoryById(actor: Actor, id: string) {
   assertCanAccess(actor, inventory.warehouseId);
 
   return withAvailable(inventory);
+}
+
+// Xoá hẳn dòng tồn kho — Admin only, chỉ cho xoá khi chưa có biến động nào.
+// Dùng cho ca khai báo nhầm cặp kho + SKU rồi chưa dùng tới. Đã từng nhập/xuất thì chặn,
+// kể cả khi số lượng hiện tại đã về 0 — vì xoá đi là mất dấu lịch sử.
+export async function deleteInventory(id: string) {
+  const existing = await inventoryRepository.findById(id);
+  if (!existing) {
+    throw new NotFoundError(Message.INVENTORY.NOT_FOUND.message, Message.INVENTORY.NOT_FOUND.code);
+  }
+
+  const movementCount = await inventoryRepository.countMovements(id);
+  assertNoReferences(
+    [{ resource: "inventoryMovement", label: "biến động tồn kho", count: movementCount }],
+    Message.INVENTORY.IN_USE
+  );
+
+  await inventoryRepository.deleteInventory(id);
 }
 
 // API public (trang khách): SKU này còn đặt được bao nhiêu, ở kho nào.
