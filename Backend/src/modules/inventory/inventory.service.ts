@@ -1,6 +1,7 @@
 import type { UserRole } from "@prisma/client";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { withAvailable } from "../../utils/inventory.util.js";
 import * as inventoryRepository from "./inventory.repository.js";
 import type { CreateInventoryInput } from "./inventory.schema.js";
 
@@ -8,17 +9,6 @@ interface Actor {
   id: string;
   role: UserRole;
   warehouseId: string | null;
-}
-
-// Bổ sung quantityAvailable vào response — không lưu cột riêng trong DB,
-// luôn tính runtime = onHand - reserved để tránh có thêm 1 nguồn số liệu có thể lệch
-export function withAvailable<T extends { quantityOnHand: number; quantityReserved: number }>(
-  inventory: T
-) {
-  return {
-    ...inventory,
-    quantityAvailable: inventory.quantityOnHand - inventory.quantityReserved,
-  };
 }
 
 // Khởi tạo dòng tồn kho cho 1 cặp kho + SKU — khai báo trước khi nhập hàng lần đầu.
