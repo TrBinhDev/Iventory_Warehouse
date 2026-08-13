@@ -46,6 +46,14 @@ router.patch(
   asyncHandler(productController.updateProduct)
 );
 
+router.delete(
+  "/:id",
+  authenticate,
+  authorize("ADMIN"),
+  validate(productIdParamSchema, "params"),
+  asyncHandler(productController.deleteProduct)
+);
+
 router.post(
   "/:productId/skus",
   authenticate,

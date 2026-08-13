@@ -110,6 +110,7 @@ export const Message = {
       code: "SKU_BARCODE_ALREADY_EXISTS",
       message: "Barcode đã tồn tại",
     },
+    IN_USE: { code: "PRODUCT_IN_USE", message: "Không thể xoá sản phẩm vì đang được sử dụng" },
   },
 
   INVENTORY: {

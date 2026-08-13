@@ -40,6 +40,13 @@ export async function updateProduct(req: Request, res: Response): Promise<void> 
   sendSuccess(res, HttpStatus.OK, product);
 }
 
+// Xử lý request xoá sản phẩm
+export async function deleteProduct(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as ProductIdParam;
+  await productService.deleteProduct(id);
+  sendSuccess(res, HttpStatus.OK, { id });
+}
+
 // Xử lý request tạo SKU mới cho 1 sản phẩm
 export async function createSku(req: Request, res: Response): Promise<void> {
   const { productId } = req.params as unknown as ProductIdRouteParam;

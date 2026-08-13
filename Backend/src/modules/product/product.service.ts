@@ -181,6 +181,31 @@ export async function getSkuDetail(productId: string, skuId: string) {
   return sku;
 }
 
+// Xoá hẳn sản phẩm — Admin only, chỉ cho xoá khi chưa có SKU nào.
+// Xoá xong thì dọn luôn ảnh trên R2 (best-effort, sau khi DB đã xong — cùng nguyên tắc với A5).
+// Các dòng ProductCategory gắn với sản phẩm sẽ tự mất theo nhờ onDelete Cascade, đó là mong muốn.
+export async function deleteProduct(id: string) {
+  const existing = await productRepository.findByIdBasic(id);
+  if (!existing) {
+    throw new NotFoundError(Message.PRODUCT.NOT_FOUND.message, Message.PRODUCT.NOT_FOUND.code);
+  }
+
+  const skuCount = await productRepository.countSkus(id);
+  const blockers = [{ resource: "sku", label: "SKU", count: skuCount }].filter(
+    (item) => item.count > 0
+  );
+
+  if (blockers.length > 0) {
+    throw new ConflictError(Message.PRODUCT.IN_USE.message, Message.PRODUCT.IN_USE.code, blockers);
+  }
+
+  await productRepository.deleteProduct(id);
+
+  if (existing.images.length > 0) {
+    await deleteFilesByUrls(existing.images);
+  }
+}
+
 // Tạo SKU mới cho 1 sản phẩm — check product tồn tại, check trùng skuCode/barcode
 export async function createSku(productId: string, input: CreateSkuInput) {
   const product = await productRepository.findByIdBasic(productId);

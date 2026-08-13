@@ -27,6 +27,19 @@ export function findById(id: string) {
   });
 }
 
+// Đếm SKU thuộc sản phẩm này — dùng để chặn xoá.
+// KHÔNG đếm ProductCategory: gán loại là thuộc tính của chính sản phẩm, xoá sản phẩm thì
+// gỡ gán theo là đúng (schema đã để onDelete Cascade). Khác với chiều ngược lại ở B1,
+// nơi loại sản phẩm là nhãn dùng chung nên phải chặn.
+export function countSkus(productId: string) {
+  return prisma.sKU.count({ where: { productId } });
+}
+
+// Xoá hẳn sản phẩm — chỉ gọi khi đã chắc không còn SKU nào
+export function deleteProduct(id: string) {
+  return prisma.product.delete({ where: { id } });
+}
+
 // Lấy danh sách sản phẩm theo filter, có phân trang
 export function findMany(where: Prisma.ProductWhereInput, skip: number, take: number) {
   return prisma.product.findMany({
