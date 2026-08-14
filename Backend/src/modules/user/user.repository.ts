@@ -80,7 +80,13 @@ export function updateUser(id: string, data: Prisma.UserUncheckedUpdateInput) {
 export async function countReferences(userId: string) {
   const [reservation, salesOrder, inbound, outbound, transfer, adjustment, movement] =
     await Promise.all([
-      prisma.reservation.count({ where: { customerId: userId } }),
+      // OR vì User nối tới Reservation bằng 2 đường: người đặt và người bấm huỷ.
+      // Không phải để chống 500 — người huỷ luôn kèm 1 InventoryMovement nên mục movement
+      // dưới đây đã chặn được họ. OR ở đây là để 409 gọi đúng tên thứ đang vướng
+      // ("1 phiếu giữ chỗ") thay vì chỉ báo chung chung là "biến động tồn kho".
+      prisma.reservation.count({
+        where: { OR: [{ customerId: userId }, { cancelledByUserId: userId }] },
+      }),
       prisma.salesOrder.count({ where: { customerId: userId } }),
       prisma.inbound.count({ where: { createdByUserId: userId } }),
       prisma.outbound.count({ where: { createdByUserId: userId } }),

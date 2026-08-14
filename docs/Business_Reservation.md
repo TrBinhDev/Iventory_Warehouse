@@ -28,6 +28,9 @@ model Reservation {
   expiredAt     DateTime?
   cancelReason  String?
 
+  cancelledByUserId String?
+  cancelledBy       User?   @relation("ReservationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict)
+
   items         ReservationItem[]
 
   createdAt     DateTime            @default(now())
@@ -64,6 +67,7 @@ model ReservationItem {
 ```text
 Warehouse   (1) ─────────────< Reservation (N)
 User        (1) ─────────────< Reservation (N)     // customer đặt trước
+User        (1) ─────────────< Reservation (N)     // cancelledBy — ai bấm huỷ, nullable
 Reservation (1) ─────────────< ReservationItem (N)
 SKU         (1) ─────────────< ReservationItem (N)
 ```
@@ -101,5 +105,13 @@ COMMIT → nhả lock
 8. **`ReservationItem` không có `updatedAt`** — snapshot bất biến, không sửa sau khi tạo. Muốn đổi số lượng thì hủy Reservation cũ, tạo mới.
 
 9. **`confirmedAt`/`cancelledAt`/`expiredAt`/`cancelReason`** — cần thiết vì `InventoryMovement` chỉ ghi log ở bước có chạm Inventory; các bước chuyển status không đụng Inventory (VD: `PENDING → CONFIRMED`) sẽ hoàn toàn mất dấu vết nếu thiếu field này. `expiredAt` tách riêng khỏi `cancelledAt` vì khác nguồn gốc: hệ thống tự động (BullMQ job/cron) vs người dùng chủ động hủy — quan trọng khi audit/debug.
+
+11. **`cancelledByUserId` — ai bấm huỷ.** Các mốc thời gian ở note 9 cho biết *lúc nào* huỷ nhưng không cho biết *ai*, trong khi phiếu có thể bị huỷ bởi 3 nguồn: chính khách, Manager của kho, hoặc Admin. Thông tin này có nằm ở `InventoryMovement.createdByUserId` của dòng `RELEASE`, nhưng ở đó nó bị lưu lặp theo từng SKU (phiếu 3 SKU → 3 dòng cùng một người) trong khi bản chất là dữ kiện cấp header — nên đưa lên `Reservation` mới đúng chỗ, không phải denormalize cho nhanh.
+
+    Ghi trong **cùng lệnh `UPDATE`** với `status`/`cancelledAt` nên không bao giờ lệch nhau. **`NULL`** khi phiếu chưa huỷ, hoặc khi hệ thống tự cho hết hạn (không có người nào thao tác) — hết hạn thì phân biệt bằng `expiredAt`.
+
+    FK `onDelete: Restrict` như 37 quan hệ khác. Kèm theo, `user.repository.countReferences` đếm `Reservation` bằng `OR [customerId, cancelledByUserId]` — **không phải để chống 500**: người huỷ phiếu luôn sinh kèm 1 `InventoryMovement`, mà mục `movement` trong `countReferences` đã chặn được họ rồi. `OR` ở đây để thông báo 409 gọi đúng tên thứ đang vướng (*"1 phiếu giữ chỗ"*) thay vì chỉ báo chung chung là *"biến động tồn kho"*.
+
+    Đây là giải pháp **tạm**: nếu sau này dựng bảng `DocumentStatusHistory` dùng chung cho các module nghiệp vụ (quyết ở module `sales-order`) thì cột này gỡ ra được, hoặc giữ song song như cách vẫn giữ `cancelledAt`.
 
 10. **`code`** — mã phiếu dễ đọc dùng để hiển thị cho khách/nhân viên (VD `RES-20260811-0001`), tách biệt với `id` (UUID dùng nội bộ cho FK). Sinh ở tầng service lúc tạo, `@unique` để DB chặn trùng nếu logic sinh code có bug; cách sinh cụ thể (sequence/timestamp-based...) quyết định lúc code module.

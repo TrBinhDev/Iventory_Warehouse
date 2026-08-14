@@ -133,7 +133,8 @@ export function findReservationById(id: string) {
 export function markReservationClosed(
   tx: Prisma.TransactionClient,
   id: string,
-  data: Prisma.ReservationUpdateManyMutationInput,
+  // Unchecked để gán thẳng cancelledByUserId — updateMany không nhận cú pháp connect quan hệ
+  data: Prisma.ReservationUncheckedUpdateManyInput,
 ) {
   return tx.reservation.updateMany({
     where: { id, status: "PENDING" },
@@ -172,6 +173,7 @@ export function findReservationWithItems(tx: Prisma.TransactionClient, id: strin
   return tx.reservation.findUnique({
     where: { id },
     include: {
+      cancelledBy: { select: { id: true, fullName: true } },
       items: {
         select: {
           id: true,

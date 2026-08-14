@@ -48,7 +48,10 @@ model User {
   status            UserStatus                 @default(ACTIVE)
   lastLoginAt       DateTime?
 
-  reservations           Reservation[]
+  reservations           Reservation[]         @relation("ReservationCustomer")
+  // Phiếu do chính người này bấm huỷ — khác hẳn reservations (phiếu do họ đặt).
+  // Cần đặt tên quan hệ vì User nối tới Reservation bằng 2 đường khác nhau.
+  cancelledReservations  Reservation[]         @relation("ReservationCancelledBy")
   salesOrders             SalesOrder[]
   createdInbounds          Inbound[]
   createdOutbounds         Outbound[]
@@ -271,7 +274,7 @@ model Reservation {
   warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
 
   customerId    String              @db.Uuid
-  customer      User                @relation(fields: [customerId], references: [id])
+  customer      User                @relation("ReservationCustomer", fields: [customerId], references: [id])
 
   status        ReservationStatus   @default(PENDING)
   expiresAt     DateTime
@@ -280,6 +283,12 @@ model Reservation {
   cancelledAt   DateTime?
   expiredAt     DateTime?
   cancelReason  String?
+
+  // Ai bấm huỷ: khách tự huỷ, Manager kho đó, hoặc Admin. NULL khi phiếu chưa huỷ,
+  // hoặc khi hệ thống tự cho hết hạn (không có người nào thao tác).
+  // Restrict để xoá user không xoá mất dấu người đã huỷ phiếu.
+  cancelledByUserId String?          @db.Uuid
+  cancelledBy       User?            @relation("ReservationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict)
 
   items         ReservationItem[]
   salesOrders   SalesOrder[]
@@ -291,6 +300,7 @@ model Reservation {
   @@index([expiresAt])
   @@index([warehouseId])
   @@index([customerId])
+  @@index([cancelledByUserId])
 }
 
 model ReservationItem {

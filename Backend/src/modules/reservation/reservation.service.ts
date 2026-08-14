@@ -238,6 +238,9 @@ export async function cancelReservation(
       status: "CANCELLED",
       cancelledAt: new Date(),
       cancelReason: input.cancelReason ?? null,
+      // Ghi cùng lệnh UPDATE với cancelledAt nên không bao giờ lệch nhau.
+      // Job hết hạn sẽ để null vì không có người nào bấm.
+      cancelledByUserId: actor.id,
     });
 
     if (closed.count === 0) {

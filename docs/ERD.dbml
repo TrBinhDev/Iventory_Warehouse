@@ -16,6 +16,7 @@ Table User {
   status UserStatus [not null, default: 'ACTIVE']
   lastLoginAt DateTime
   reservations Reservation [not null]
+  cancelledReservations Reservation [not null]
   salesOrders SalesOrder [not null]
   createdInbounds Inbound [not null]
   createdOutbounds Outbound [not null]
@@ -151,6 +152,8 @@ Table Reservation {
   cancelledAt DateTime
   expiredAt DateTime
   cancelReason String
+  cancelledByUserId String
+  cancelledBy User
   items ReservationItem [not null]
   salesOrders SalesOrder [not null]
   createdAt DateTime [default: `now()`, not null]
@@ -482,6 +485,8 @@ Ref: Inventory.skuId > SKU.id
 Ref: Reservation.warehouseId > Warehouse.id
 
 Ref: Reservation.customerId > User.id
+
+Ref: Reservation.cancelledByUserId > User.id
 
 Ref: ReservationItem.reservationId > Reservation.id
 
