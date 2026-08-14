@@ -153,6 +153,16 @@ export function findItemsByReservationId(
   });
 }
 
+// Tìm phiếu đã quá hạn mà chưa được nhả — cho job quét dự phòng, giới hạn số lượng mỗi lượt
+export function findExpiredPendingIds(limit: number) {
+  return prisma.reservation.findMany({
+    where: { status: "PENDING", expiresAt: { lt: new Date() } },
+    select: { id: true },
+    orderBy: { expiresAt: "asc" },
+    take: limit,
+  });
+}
+
 // Giảm số đang giữ — CHECK constraint reserved >= 0 dưới DB là lưới đỡ nếu logic sai
 export function decreaseReserved(
   tx: Prisma.TransactionClient,

@@ -8,6 +8,7 @@ import {
   claimIdempotencyKey,
   releaseIdempotencyKey,
 } from "../../utils/idempotency.util.js";
+import { scheduleExpireJob } from "../../queues/reservation.queue.js";
 import * as reservationRepository from "./reservation.repository.js";
 import type {
   CancelReservationInput,
@@ -169,7 +170,11 @@ export async function createReservation(
       return created;
     });
 
-    // TODO(R9): schedule BullMQ job nhả reserved lúc expiresAt — phải ngoài transaction
+    // Hẹn giờ nhả hàng — NGOÀI transaction: hẹn bên trong mà rollback thì job vẫn tồn tại và
+    // sẽ đi nhả hàng của một phiếu chưa từng ra đời. Đổi lại, commit xong mà Redis chết thì
+    // mất job — đó là lý do có cron quét dự phòng.
+    await scheduleExpireJob(reservation.id, expiresAt);
+
     return reservation;
   } catch (err) {
     // Nhả key để khách thử lại ngay được, không thì lỗi hết hàng bị che tới khi key hết TTL
@@ -335,38 +340,79 @@ export async function cancelReservation(
       );
     }
 
-    const items = await reservationRepository.findItemsByReservationId(tx, id);
-    const skuIds = [...items].map((item) => item.skuId).sort((a, b) => a.localeCompare(b));
-
-    // Khoá cùng thứ tự với lúc tạo phiếu (ORDER BY "skuId") để 2 luồng không ôm chéo lock
-    const rows = await reservationRepository.lockInventories(
-      tx,
-      reservation.warehouseId,
-      skuIds,
-    );
-    const rowBySkuId = new Map(rows.map((row) => [row.skuId, row]));
-
-    const movements: Prisma.InventoryMovementCreateManyInput[] = [];
-
-    for (const item of items) {
-      const row = rowBySkuId.get(item.skuId)!;
-      await reservationRepository.decreaseReserved(tx, row.id, item.quantity);
-
-      movements.push({
-        inventoryId: row.id,
-        createdByUserId: actor.id,
-        movementType: "RELEASE",
-        referenceType: "RESERVATION",
-        referenceId: id,
-        onHandBefore: row.quantityOnHand,
-        onHandAfter: row.quantityOnHand,
-        reservedBefore: row.quantityReserved,
-        reservedAfter: row.quantityReserved - item.quantity,
-      });
-    }
-
-    await reservationRepository.createMovements(tx, movements);
+    await releaseReservedItems(tx, id, reservation.warehouseId, actor.id);
 
     return reservationRepository.findReservationWithItems(tx, id);
   });
+}
+
+// Nhả toàn bộ reserved của phiếu và ghi audit — dùng chung cho huỷ tay lẫn job hết hạn.
+// actorId null nghĩa là hệ thống tự làm (job), không có người nào thao tác.
+async function releaseReservedItems(
+  tx: Prisma.TransactionClient,
+  reservationId: string,
+  warehouseId: string,
+  actorId: string | null,
+): Promise<void> {
+  const items = await reservationRepository.findItemsByReservationId(tx, reservationId);
+  const skuIds = [...items].map((item) => item.skuId).sort((a, b) => a.localeCompare(b));
+
+  // Khoá cùng thứ tự với lúc tạo phiếu (ORDER BY "skuId") để 2 luồng không ôm chéo lock
+  const rows = await reservationRepository.lockInventories(tx, warehouseId, skuIds);
+  const rowBySkuId = new Map(rows.map((row) => [row.skuId, row]));
+
+  const movements: Prisma.InventoryMovementCreateManyInput[] = [];
+
+  for (const item of items) {
+    const row = rowBySkuId.get(item.skuId)!;
+    await reservationRepository.decreaseReserved(tx, row.id, item.quantity);
+
+    movements.push({
+      inventoryId: row.id,
+      createdByUserId: actorId,
+      movementType: "RELEASE",
+      referenceType: "RESERVATION",
+      referenceId: reservationId,
+      onHandBefore: row.quantityOnHand,
+      onHandAfter: row.quantityOnHand,
+      reservedBefore: row.quantityReserved,
+      reservedAfter: row.quantityReserved - item.quantity,
+    });
+  }
+
+  await reservationRepository.createMovements(tx, movements);
+}
+
+// Hết hạn phiếu do job chạy nền: KHÔNG throw khi phiếu đã đóng trước đó — khác cancel ở chỗ
+// không có ai đọc lỗi, thoát êm là đúng. Trả về có nhả thật hay không để job ghi log.
+export async function expireReservation(reservationId: string): Promise<boolean> {
+  const reservation = await reservationRepository.findReservationById(reservationId);
+  if (!reservation || reservation.status !== "PENDING") return false;
+
+  return prisma.$transaction(async (tx) => {
+    const closed = await reservationRepository.markReservationClosed(tx, reservationId, {
+      status: "EXPIRED",
+      expiredAt: new Date(),
+      // cancelledAt/cancelledByUserId để nguyên null — hết hạn khác huỷ về nguồn gốc
+    });
+
+    if (closed.count === 0) return false;
+
+    await releaseReservedItems(tx, reservationId, reservation.warehouseId, null);
+    return true;
+  });
+}
+
+// Quét phiếu quá hạn bị job chính bỏ sót (VD Redis restart mất job đã hẹn).
+// Mỗi phiếu một transaction riêng: gom hết vào một transaction sẽ khoá quá nhiều dòng
+// Inventory cùng lúc và chặn khách đang mua hàng.
+export async function sweepExpiredReservations(limit = 100): Promise<number> {
+  const candidates = await reservationRepository.findExpiredPendingIds(limit);
+
+  let released = 0;
+  for (const candidate of candidates) {
+    if (await expireReservation(candidate.id)) released += 1;
+  }
+
+  return released;
 }
