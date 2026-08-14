@@ -155,4 +155,42 @@ export const Message = {
     },
     UPLOAD_FAILED: { code: "UPLOAD_FAILED", message: "Tải ảnh lên thất bại, vui lòng thử lại" },
   },
+
+  RESERVATION: {
+    NOT_FOUND: { code: "RESERVATION_NOT_FOUND", message: "Không tìm thấy phiếu giữ chỗ" },
+    OUT_OF_STOCK: {
+      code: "OUT_OF_STOCK",
+      message: "Một số sản phẩm không còn đủ hàng để giữ chỗ",
+    },
+    INVENTORY_NOT_FOUND: {
+      code: "INVENTORY_NOT_FOUND",
+      message: "Kho này chưa khai báo tồn cho một số SKU trong phiếu",
+    },
+    WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+    SKU_INACTIVE: {
+      code: "SKU_INACTIVE",
+      message: "Sản phẩm đã ngừng kinh doanh, không thể giữ chỗ",
+    },
+    MISSING_IDEMPOTENCY_KEY: {
+      code: "MISSING_IDEMPOTENCY_KEY",
+      message: "Thiếu header Idempotency-Key",
+    },
+    DUPLICATE_REQUEST: {
+      code: "DUPLICATE_REQUEST",
+      message: "Yêu cầu này đã được xử lý, vui lòng xem lại danh sách phiếu giữ chỗ",
+    },
+    INVALID_STATUS: {
+      code: "RESERVATION_INVALID_STATUS",
+      message: "Phiếu không còn ở trạng thái chờ nên không thể thao tác",
+    },
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Chỉ được thao tác trên kho mình quản lý",
+    },
+    CANCEL_REASON_REQUIRED: {
+      code: "CANCEL_REASON_REQUIRED",
+      message: "Cần nhập lý do khi huỷ phiếu giữ chỗ của khách",
+    },
+  },
 } as const;
