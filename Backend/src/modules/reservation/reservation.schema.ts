@@ -32,3 +32,17 @@ export const cancelReservationSchema = z.object({
 });
 
 export type CancelReservationInput = z.infer<typeof cancelReservationSchema>;
+
+// Query danh sách phiếu — Manager/Staff bị ép cứng kho mình ở service, warehouseId gửi lên bị bỏ qua
+export const listReservationsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.enum(["PENDING", "CONFIRMED", "CANCELLED", "EXPIRED"]).optional(),
+  code: z.string().trim().min(1).max(30).optional(),
+  warehouseId: z.uuid("warehouseId phải là UUID hợp lệ").optional(),
+  skuId: z.uuid("skuId phải là UUID hợp lệ").optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+});
+
+export type ListReservationsQuery = z.infer<typeof listReservationsQuerySchema>;

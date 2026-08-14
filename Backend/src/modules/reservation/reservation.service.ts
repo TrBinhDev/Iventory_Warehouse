@@ -1,4 +1,5 @@
-import type { Prisma, UserRole } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { UserRole } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
 import { env } from "../../config/env.js";
 import { Message } from "../../constants/message.js";
@@ -11,6 +12,7 @@ import * as reservationRepository from "./reservation.repository.js";
 import type {
   CancelReservationInput,
   CreateReservationInput,
+  ListReservationsQuery,
 } from "./reservation.schema.js";
 
 interface Actor {
@@ -176,24 +178,107 @@ export async function createReservation(
   }
 }
 
-// Khách chỉ đụng phiếu của mình, Manager chỉ đụng phiếu kho mình — trả 404 để không lộ phiếu có tồn tại
-function assertCanCancel(
+// Khách chỉ đụng phiếu của mình, Staff/Manager chỉ đụng phiếu kho mình — trả 404 để không lộ
+// phiếu có tồn tại. Dùng chung cho cả xem lẫn huỷ: quyền huỷ hẹp hơn (Staff bị loại) nhưng
+// việc đó middleware authorize chặn từ route rồi, tới đây chỉ còn câu hỏi phạm vi.
+function assertInScope(
   actor: Actor,
   reservation: { customerId: string; warehouseId: string },
 ): void {
   if (actor.role === "ADMIN") return;
 
-  const owned =
+  const inScope =
     actor.role === "CUSTOMER"
       ? reservation.customerId === actor.id
       : reservation.warehouseId === actor.warehouseId;
 
-  if (!owned) {
+  if (!inScope) {
     throw new NotFoundError(
       Message.RESERVATION.NOT_FOUND.message,
       Message.RESERVATION.NOT_FOUND.code,
     );
   }
+}
+
+// Cộng tổng số lượng và tổng tiền của phiếu — Decimal phải cộng bằng API của nó, không dùng number
+function summarize(items: Array<{ quantity: number; unitPrice: Prisma.Decimal }>) {
+  return {
+    itemCount: items.length,
+    totalQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
+    totalAmount: items.reduce(
+      (sum, item) => sum.add(item.unitPrice.mul(item.quantity)),
+      new Prisma.Decimal(0),
+    ),
+  };
+}
+
+// Danh sách phiếu có phân trang — khách thấy phiếu của mình, nhân viên thấy phiếu kho mình
+export async function listReservations(actor: Actor, query: ListReservationsQuery) {
+  const where: Prisma.ReservationWhereInput = {};
+
+  if (actor.role === "CUSTOMER") {
+    where.customerId = actor.id;
+    if (query.warehouseId) where.warehouseId = query.warehouseId;
+  } else if (actor.role === "ADMIN") {
+    if (query.warehouseId) where.warehouseId = query.warehouseId;
+  } else {
+    // Manager/Staff không gắn kho thì không thấy gì (fail closed), không phải thấy tất cả
+    if (!actor.warehouseId) return { items: [], total: 0 };
+    where.warehouseId = actor.warehouseId;
+  }
+
+  if (query.status) where.status = query.status;
+  if (query.code) where.code = { contains: query.code, mode: "insensitive" };
+
+  // Phiếu nào đang giữ SKU này — trả lời câu "onHand 50 mà available 2, ai đang giữ 48 cái kia"
+  if (query.skuId) where.items = { some: { skuId: query.skuId } };
+
+  if (query.from || query.to) {
+    where.createdAt = {
+      ...(query.from ? { gte: query.from } : {}),
+      ...(query.to ? { lte: query.to } : {}),
+    };
+  }
+
+  const skip = (query.page - 1) * query.limit;
+
+  const [rows, total] = await Promise.all([
+    reservationRepository.findManyReservations(where, skip, query.limit),
+    reservationRepository.countReservations(where),
+  ]);
+
+  const items = rows.map(({ items: lines, ...rest }) => ({
+    ...rest,
+    ...summarize(lines),
+  }));
+
+  return { items, total };
+}
+
+// Chi tiết 1 phiếu — khách không được thấy tên nhân viên đã huỷ, đó là thông tin nội bộ
+export async function getReservationById(actor: Actor, id: string) {
+  const reservation = await reservationRepository.findReservationDetail(id);
+  if (!reservation) {
+    throw new NotFoundError(
+      Message.RESERVATION.NOT_FOUND.message,
+      Message.RESERVATION.NOT_FOUND.code,
+    );
+  }
+
+  assertInScope(actor, reservation);
+
+  // warehouseId/customerId chỉ dùng để check phạm vi, đã có trong warehouse/customer nên bỏ khỏi response
+  const { warehouseId, customerId, cancelledBy, items, ...rest } = reservation;
+
+  return {
+    ...rest,
+    ...(actor.role === "CUSTOMER" ? {} : { cancelledBy }),
+    items: items.map((item) => ({
+      ...item,
+      lineTotal: item.unitPrice.mul(item.quantity),
+    })),
+    ...summarize(items),
+  };
 }
 
 // Huỷ phiếu và nhả hàng về bán tiếp ngay, không phải chờ hết hạn
@@ -210,7 +295,7 @@ export async function cancelReservation(
     );
   }
 
-  assertCanCancel(actor, reservation);
+  assertInScope(actor, reservation);
 
   // Nhân viên huỷ đơn người khác thì phải giải trình; khách tự huỷ thì customerId đã nói ai làm
   if (actor.role !== "CUSTOMER" && !input.cancelReason) {

@@ -5,7 +5,10 @@ import { BadRequestError } from "../../errors/appError.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as reservationService from "./reservation.service.js";
 import { idempotencyKeySchema } from "./reservation.schema.js";
-import type { ReservationIdParam } from "./reservation.schema.js";
+import type {
+  ListReservationsQuery,
+  ReservationIdParam,
+} from "./reservation.schema.js";
 
 // Xử lý request tạo phiếu giữ chỗ — header đọc thẳng ở đây vì validate chỉ nhận body/query/params
 export async function createReservation(req: Request, res: Response): Promise<void> {
@@ -24,6 +27,24 @@ export async function createReservation(req: Request, res: Response): Promise<vo
   );
 
   sendSuccess(res, HttpStatus.CREATED, reservation);
+}
+
+// Xử lý request lấy danh sách phiếu giữ chỗ (phân trang)
+export async function listReservations(req: Request, res: Response): Promise<void> {
+  const query = req.query as unknown as ListReservationsQuery;
+  const { items, total } = await reservationService.listReservations(req.user!, query);
+  sendSuccess(res, HttpStatus.OK, items, {
+    page: query.page,
+    limit: query.limit,
+    total,
+  });
+}
+
+// Xử lý request xem chi tiết 1 phiếu giữ chỗ
+export async function getReservationById(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as ReservationIdParam;
+  const reservation = await reservationService.getReservationById(req.user!, id);
+  sendSuccess(res, HttpStatus.OK, reservation);
 }
 
 // Xử lý request huỷ phiếu giữ chỗ

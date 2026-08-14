@@ -168,6 +168,75 @@ export function decreaseReserved(
   });
 }
 
+// Danh sách phiếu có phân trang. Kéo items chỉ 2 cột số để service cộng tổng SL/tổng tiền —
+// không join sang SKU/Product nên vẫn nhẹ. Sắp mới nhất trước vì đây là chứng từ, không phải danh mục.
+export function findManyReservations(
+  where: Prisma.ReservationWhereInput,
+  skip: number,
+  take: number,
+) {
+  return prisma.reservation.findMany({
+    where,
+    skip,
+    take,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      code: true,
+      status: true,
+      expiresAt: true,
+      createdAt: true,
+      warehouse: { select: { id: true, code: true, name: true } },
+      customer: { select: { id: true, fullName: true } },
+      items: { select: { quantity: true, unitPrice: true } },
+    },
+  });
+}
+
+// Đếm tổng số phiếu khớp filter — dùng cho meta phân trang
+export function countReservations(where: Prisma.ReservationWhereInput) {
+  return prisma.reservation.count({ where });
+}
+
+// Chi tiết 1 phiếu — join đủ để xem kỹ, chỉ 1 dòng nên không tiếc payload
+export function findReservationDetail(id: string) {
+  return prisma.reservation.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      code: true,
+      status: true,
+      expiresAt: true,
+      createdAt: true,
+      updatedAt: true,
+      confirmedAt: true,
+      cancelledAt: true,
+      expiredAt: true,
+      cancelReason: true,
+      warehouseId: true,
+      customerId: true,
+      warehouse: { select: { id: true, code: true, name: true, address: true } },
+      customer: { select: { id: true, fullName: true, email: true, phone: true } },
+      cancelledBy: { select: { id: true, fullName: true } },
+      items: {
+        select: {
+          id: true,
+          skuId: true,
+          quantity: true,
+          unitPrice: true,
+          sku: {
+            select: {
+              skuCode: true,
+              barcode: true,
+              product: { select: { id: true, name: true, unit: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
 // Lấy phiếu kèm item để trả về cho client sau khi đổi trạng thái
 export function findReservationWithItems(tx: Prisma.TransactionClient, id: string) {
   return tx.reservation.findUnique({
