@@ -11,6 +11,7 @@ import { supplierRouter } from "./modules/supplier/supplier.routes.js";
 import { categoryRouter } from "./modules/category/category.routes.js";
 import { productRouter } from "./modules/product/product.routes.js";
 import { inventoryRouter } from "./modules/inventory/inventory.routes.js";
+import { reservationRouter } from "./modules/reservation/reservation.routes.js";
 import { uploadRouter } from "./modules/upload/upload.routes.js";
 
 const app = express();
@@ -31,6 +32,7 @@ app.use("/suppliers", supplierRouter);
 app.use("/categories", categoryRouter);
 app.use("/products", productRouter);
 app.use("/inventories", inventoryRouter);
+app.use("/reservations", reservationRouter);
 app.use("/uploads", uploadRouter);
 
 app.use(notFoundHandler);

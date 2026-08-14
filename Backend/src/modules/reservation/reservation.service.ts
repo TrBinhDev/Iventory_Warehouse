@@ -1,0 +1,174 @@
+import type { Prisma, UserRole } from "@prisma/client";
+import { prisma } from "../../config/prisma.js";
+import { env } from "../../config/env.js";
+import { Message } from "../../constants/message.js";
+import { BadRequestError, ConflictError, NotFoundError } from "../../errors/appError.js";
+import {
+  claimIdempotencyKey,
+  releaseIdempotencyKey,
+} from "../../utils/idempotency.util.js";
+import * as reservationRepository from "./reservation.repository.js";
+import type { CreateReservationInput } from "./reservation.schema.js";
+
+interface Actor {
+  id: string;
+  role: UserRole;
+  warehouseId: string | null;
+}
+
+interface MergedItem {
+  skuId: string;
+  quantity: number;
+}
+
+// Gộp dòng trùng skuId (hạ chữ thường vì UUID nhận cả chữ hoa) rồi sort cho kết quả ổn định
+function mergeItems(items: CreateReservationInput["items"]): MergedItem[] {
+  const merged = new Map<string, number>();
+
+  for (const item of items) {
+    const skuId = item.skuId.toLowerCase();
+    merged.set(skuId, (merged.get(skuId) ?? 0) + item.quantity);
+  }
+
+  return [...merged.entries()]
+    .map(([skuId, quantity]) => ({ skuId, quantity }))
+    .sort((a, b) => a.skuId.localeCompare(b.skuId));
+}
+
+// Tạo phiếu giữ chỗ: khoá tồn → kiểm đủ hàng → tăng reserved → tạo phiếu → ghi audit, trong 1 transaction
+export async function createReservation(
+  actor: Actor,
+  input: CreateReservationInput,
+  idempotencyKey: string,
+) {
+  // Claim đặt ngoài try: để trong thì lúc claim ném DUPLICATE, catch sẽ xoá key của request đầu đang chạy
+  const key = await claimIdempotencyKey(
+    actor.id,
+    idempotencyKey,
+    Message.RESERVATION.DUPLICATE_REQUEST,
+  );
+
+  try {
+    const items = mergeItems(input.items);
+    const skuIds = items.map((item) => item.skuId);
+
+    const warehouse = await reservationRepository.findWarehouseById(input.warehouseId);
+    if (!warehouse || warehouse.status !== "ACTIVE") {
+      throw new NotFoundError(
+        Message.RESERVATION.WAREHOUSE_NOT_FOUND.message,
+        Message.RESERVATION.WAREHOUSE_NOT_FOUND.code,
+      );
+    }
+
+    const skus = await reservationRepository.findSkusForReservation(skuIds);
+
+    if (skus.length !== skuIds.length) {
+      const found = new Set(skus.map((sku) => sku.id));
+      throw new NotFoundError(
+        Message.RESERVATION.SKU_NOT_FOUND.message,
+        Message.RESERVATION.SKU_NOT_FOUND.code,
+        skuIds.filter((skuId) => !found.has(skuId)),
+      );
+    }
+
+    const inactive = skus.filter(
+      (sku) => sku.status !== "ACTIVE" || sku.product.status !== "ACTIVE",
+    );
+    if (inactive.length > 0) {
+      throw new BadRequestError(
+        Message.RESERVATION.SKU_INACTIVE.message,
+        Message.RESERVATION.SKU_INACTIVE.code,
+        inactive.map((sku) => sku.id),
+      );
+    }
+
+    const priceBySkuId = new Map(skus.map((sku) => [sku.id, sku.price]));
+    const expiresAt = new Date(Date.now() + env.RESERVATION_TTL_MINUTES * 60_000);
+
+    const reservation = await prisma.$transaction(async (tx) => {
+      const rows = await reservationRepository.lockInventories(
+        tx,
+        input.warehouseId,
+        skuIds,
+      );
+
+      // Không lazy-create: kho chưa khai báo tồn cho SKU thì không giữ chỗ được
+      if (rows.length !== items.length) {
+        const declared = new Set(rows.map((row) => row.skuId));
+        throw new NotFoundError(
+          Message.RESERVATION.INVENTORY_NOT_FOUND.message,
+          Message.RESERVATION.INVENTORY_NOT_FOUND.code,
+          skuIds.filter((skuId) => !declared.has(skuId)),
+        );
+      }
+
+      const rowBySkuId = new Map(rows.map((row) => [row.skuId, row]));
+
+      const shortages = items
+        .map((item) => {
+          const row = rowBySkuId.get(item.skuId)!;
+          return {
+            skuId: item.skuId,
+            requested: item.quantity,
+            available: row.quantityOnHand - row.quantityReserved,
+          };
+        })
+        .filter((entry) => entry.available < entry.requested);
+
+      // Thiếu ở bất kỳ SKU nào là rollback cả phiếu, không giữ chỗ một phần
+      if (shortages.length > 0) {
+        throw new ConflictError(
+          Message.RESERVATION.OUT_OF_STOCK.message,
+          Message.RESERVATION.OUT_OF_STOCK.code,
+          shortages,
+        );
+      }
+
+      for (const item of items) {
+        const row = rowBySkuId.get(item.skuId)!;
+        await reservationRepository.increaseReserved(tx, row.id, item.quantity);
+      }
+
+      const code = await reservationRepository.nextReservationCode(tx);
+
+      const created = await reservationRepository.createReservationWithItems(tx, {
+        code,
+        warehouseId: input.warehouseId,
+        customerId: actor.id,
+        expiresAt,
+        items: items.map((item) => ({
+          skuId: item.skuId,
+          quantity: item.quantity,
+          unitPrice: priceBySkuId.get(item.skuId)!,
+        })),
+      });
+
+      // onHand before = after vì giữ chỗ chỉ đụng reserved
+      const movements: Prisma.InventoryMovementCreateManyInput[] = items.map((item) => {
+        const row = rowBySkuId.get(item.skuId)!;
+        return {
+          inventoryId: row.id,
+          createdByUserId: actor.id,
+          movementType: "RESERVE",
+          referenceType: "RESERVATION",
+          referenceId: created.id,
+          onHandBefore: row.quantityOnHand,
+          onHandAfter: row.quantityOnHand,
+          reservedBefore: row.quantityReserved,
+          reservedAfter: row.quantityReserved + item.quantity,
+        };
+      });
+
+      await reservationRepository.createMovements(tx, movements);
+
+      return created;
+    });
+
+    // TODO(R9): schedule BullMQ job nhả reserved lúc expiresAt — phải ngoài transaction
+    return reservation;
+  } catch (err) {
+    // Nhả key để khách thử lại ngay được, không thì lỗi hết hàng bị che tới khi key hết TTL
+    await releaseIdempotencyKey(key);
+    throw err;
+  }
+}
