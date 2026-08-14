@@ -120,3 +120,69 @@ export function createMovements(
 ) {
   return tx.inventoryMovement.createMany({ data });
 }
+
+// Lấy phiếu để kiểm quyền + trạng thái trước khi vào transaction
+export function findReservationById(id: string) {
+  return prisma.reservation.findUnique({
+    where: { id },
+    select: { id: true, customerId: true, warehouseId: true, status: true },
+  });
+}
+
+// Đóng phiếu (huỷ/hết hạn) — status vừa là điều kiện vừa là khoá, trả count 0 nếu ai đó đã xử lý trước
+export function markReservationClosed(
+  tx: Prisma.TransactionClient,
+  id: string,
+  data: Prisma.ReservationUpdateManyMutationInput,
+) {
+  return tx.reservation.updateMany({
+    where: { id, status: "PENDING" },
+    data,
+  });
+}
+
+// Lấy dòng item của phiếu để biết nhả bao nhiêu cho từng SKU
+export function findItemsByReservationId(
+  tx: Prisma.TransactionClient,
+  reservationId: string,
+) {
+  return tx.reservationItem.findMany({
+    where: { reservationId },
+    select: { skuId: true, quantity: true },
+  });
+}
+
+// Giảm số đang giữ — CHECK constraint reserved >= 0 dưới DB là lưới đỡ nếu logic sai
+export function decreaseReserved(
+  tx: Prisma.TransactionClient,
+  inventoryId: string,
+  quantity: number,
+) {
+  return tx.inventory.update({
+    where: { id: inventoryId },
+    data: {
+      quantityReserved: { decrement: quantity },
+      version: { increment: 1 },
+    },
+  });
+}
+
+// Lấy phiếu kèm item để trả về cho client sau khi đổi trạng thái
+export function findReservationWithItems(tx: Prisma.TransactionClient, id: string) {
+  return tx.reservation.findUnique({
+    where: { id },
+    include: {
+      items: {
+        select: {
+          id: true,
+          skuId: true,
+          quantity: true,
+          unitPrice: true,
+          sku: {
+            select: { skuCode: true, product: { select: { name: true } } },
+          },
+        },
+      },
+    },
+  });
+}

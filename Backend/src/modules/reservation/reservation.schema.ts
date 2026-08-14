@@ -18,3 +18,17 @@ export const createReservationSchema = z.object({
 });
 
 export type CreateReservationInput = z.infer<typeof createReservationSchema>;
+
+// Param :id cho các route thao tác trên 1 phiếu
+export const reservationIdParamSchema = z.object({
+  id: z.uuid("id phải là UUID hợp lệ"),
+});
+
+export type ReservationIdParam = z.infer<typeof reservationIdParamSchema>;
+
+// Body huỷ phiếu — lý do bắt buộc khi nhân viên huỷ đơn của khách, service kiểm theo role
+export const cancelReservationSchema = z.object({
+  cancelReason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type CancelReservationInput = z.infer<typeof cancelReservationSchema>;

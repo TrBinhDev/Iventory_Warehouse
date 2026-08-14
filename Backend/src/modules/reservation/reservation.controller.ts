@@ -5,6 +5,7 @@ import { BadRequestError } from "../../errors/appError.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as reservationService from "./reservation.service.js";
 import { idempotencyKeySchema } from "./reservation.schema.js";
+import type { ReservationIdParam } from "./reservation.schema.js";
 
 // Xử lý request tạo phiếu giữ chỗ — header đọc thẳng ở đây vì validate chỉ nhận body/query/params
 export async function createReservation(req: Request, res: Response): Promise<void> {
@@ -23,4 +24,11 @@ export async function createReservation(req: Request, res: Response): Promise<vo
   );
 
   sendSuccess(res, HttpStatus.CREATED, reservation);
+}
+
+// Xử lý request huỷ phiếu giữ chỗ
+export async function cancelReservation(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as ReservationIdParam;
+  const reservation = await reservationService.cancelReservation(req.user!, id, req.body);
+  sendSuccess(res, HttpStatus.OK, reservation);
 }

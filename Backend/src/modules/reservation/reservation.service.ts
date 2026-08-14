@@ -8,7 +8,10 @@ import {
   releaseIdempotencyKey,
 } from "../../utils/idempotency.util.js";
 import * as reservationRepository from "./reservation.repository.js";
-import type { CreateReservationInput } from "./reservation.schema.js";
+import type {
+  CancelReservationInput,
+  CreateReservationInput,
+} from "./reservation.schema.js";
 
 interface Actor {
   id: string;
@@ -171,4 +174,111 @@ export async function createReservation(
     await releaseIdempotencyKey(key);
     throw err;
   }
+}
+
+// Khách chỉ đụng phiếu của mình, Manager chỉ đụng phiếu kho mình — trả 404 để không lộ phiếu có tồn tại
+function assertCanCancel(
+  actor: Actor,
+  reservation: { customerId: string; warehouseId: string },
+): void {
+  if (actor.role === "ADMIN") return;
+
+  const owned =
+    actor.role === "CUSTOMER"
+      ? reservation.customerId === actor.id
+      : reservation.warehouseId === actor.warehouseId;
+
+  if (!owned) {
+    throw new NotFoundError(
+      Message.RESERVATION.NOT_FOUND.message,
+      Message.RESERVATION.NOT_FOUND.code,
+    );
+  }
+}
+
+// Huỷ phiếu và nhả hàng về bán tiếp ngay, không phải chờ hết hạn
+export async function cancelReservation(
+  actor: Actor,
+  id: string,
+  input: CancelReservationInput,
+) {
+  const reservation = await reservationRepository.findReservationById(id);
+  if (!reservation) {
+    throw new NotFoundError(
+      Message.RESERVATION.NOT_FOUND.message,
+      Message.RESERVATION.NOT_FOUND.code,
+    );
+  }
+
+  assertCanCancel(actor, reservation);
+
+  // Nhân viên huỷ đơn người khác thì phải giải trình; khách tự huỷ thì customerId đã nói ai làm
+  if (actor.role !== "CUSTOMER" && !input.cancelReason) {
+    throw new BadRequestError(
+      Message.RESERVATION.CANCEL_REASON_REQUIRED.message,
+      Message.RESERVATION.CANCEL_REASON_REQUIRED.code,
+    );
+  }
+
+  // Chốt SỚM: báo lỗi cho ca thường mà không phải mở transaction. Miễn phí vì bản ghi đã đọc
+  // sẵn ở trên để làm 404 + ABAC. Đây KHÔNG phải chốt chống race — chốt đó nằm trong updateMany
+  // dưới transaction, đừng thấy trùng mà xoá cái nào.
+  if (reservation.status !== "PENDING") {
+    throw new ConflictError(
+      Message.RESERVATION.INVALID_STATUS.message,
+      Message.RESERVATION.INVALID_STATUS.code,
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // Chốt CHỐNG RACE (bắt buộc, không được bỏ): đổi status là ĐIỀU KIỆN chứ không phải hệ quả.
+    // 0 dòng nghĩa là job hết hạn hoặc một request huỷ khác đã xử lý xong trước. Không có chốt
+    // này thì reserved bị trừ 2 lần, available phình ảo và bán vượt số hàng thật có.
+    const closed = await reservationRepository.markReservationClosed(tx, id, {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      cancelReason: input.cancelReason ?? null,
+    });
+
+    if (closed.count === 0) {
+      throw new ConflictError(
+        Message.RESERVATION.INVALID_STATUS.message,
+        Message.RESERVATION.INVALID_STATUS.code,
+      );
+    }
+
+    const items = await reservationRepository.findItemsByReservationId(tx, id);
+    const skuIds = [...items].map((item) => item.skuId).sort((a, b) => a.localeCompare(b));
+
+    // Khoá cùng thứ tự với lúc tạo phiếu (ORDER BY "skuId") để 2 luồng không ôm chéo lock
+    const rows = await reservationRepository.lockInventories(
+      tx,
+      reservation.warehouseId,
+      skuIds,
+    );
+    const rowBySkuId = new Map(rows.map((row) => [row.skuId, row]));
+
+    const movements: Prisma.InventoryMovementCreateManyInput[] = [];
+
+    for (const item of items) {
+      const row = rowBySkuId.get(item.skuId)!;
+      await reservationRepository.decreaseReserved(tx, row.id, item.quantity);
+
+      movements.push({
+        inventoryId: row.id,
+        createdByUserId: actor.id,
+        movementType: "RELEASE",
+        referenceType: "RESERVATION",
+        referenceId: id,
+        onHandBefore: row.quantityOnHand,
+        onHandAfter: row.quantityOnHand,
+        reservedBefore: row.quantityReserved,
+        reservedAfter: row.quantityReserved - item.quantity,
+      });
+    }
+
+    await reservationRepository.createMovements(tx, movements);
+
+    return reservationRepository.findReservationWithItems(tx, id);
+  });
 }
