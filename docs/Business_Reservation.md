@@ -17,7 +17,7 @@ model Reservation {
   warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
 
   customerId    String              @db.Uuid
-  customer      User                @relation(fields: [customerId], references: [id])
+  customer      User                @relation("ReservationCustomer", fields: [customerId], references: [id])
 
   status        ReservationStatus   @default(PENDING)
 
@@ -40,6 +40,7 @@ model Reservation {
   @@index([expiresAt])
   @@index([warehouseId])
   @@index([customerId])
+  @@index([cancelledByUserId])
 }
 
 model ReservationItem {
@@ -78,7 +79,9 @@ SKU         (1) ─────────────< ReservationItem (N)
 
 2. **`customerId`** — gắn với người đặt, dùng `User` đã có sẵn (role `CUSTOMER`).
 
-3. **`idempotencyKey` KHÔNG lưu trong bảng này** — xử lý ở Redis (`SETNX` + TTL), check _ngoài_ transaction Postgres trước khi chạm DB. Chỉ cache response **thành công**; fail do hết hàng (business logic, không phải lỗi hệ thống) thì không cache dài hạn, để request sau (dù cùng key) được thử lại bình thường.
+3. **`idempotencyKey` KHÔNG lưu trong bảng này** — xử lý ở Redis (`SET NX` + TTL 60s), check _ngoài_ transaction Postgres trước khi chạm DB. Transaction fail (VD hết hàng) thì **xoá key ngay** để khách thử lại được bằng chính key đó; không xoá thì lỗi nghiệp vụ bị che tới khi key hết hạn.
+
+    **Đã chốt KHÔNG replay response.** Request trùng nhận `409 DUPLICATE_REQUEST`, client tự gọi `GET /reservations` để thấy phiếu. Nhờ vậy Redis chỉ lưu `1` thay vì cả response body, và không phải xử lý ca "request đầu chưa chạy xong nên chưa có gì để trả". Replay thật ra cũng chỉ cứu được ca retry-sau-timeout — double-click hai request cách nhau ~100ms thì request đầu còn đang chạy, dù chọn hướng nào request sau cũng nhận 409.
 
 4. **`expiresAt` lưu DB, không lưu Redis** — vì việc nhả `reserved` phải atomic cùng transaction Postgres với update `Inventory`. Cơ chế trigger: BullMQ delayed job (schedule đúng lúc tạo Reservation, chạy 1 lần đúng thời điểm hết hạn) làm chính, cộng cron dự phòng tần suất thấp (15-30 phút/lần) quét row `status=PENDING AND expiresAt < NOW()` bị job chính bỏ sót (VD: Redis restart mất job).
 
@@ -114,4 +117,106 @@ COMMIT → nhả lock
 
     Đây là giải pháp **tạm**: nếu sau này dựng bảng `DocumentStatusHistory` dùng chung cho các module nghiệp vụ (quyết ở module `sales-order`) thì cột này gỡ ra được, hoặc giữ song song như cách vẫn giữ `cancelledAt`.
 
-10. **`code`** — mã phiếu dễ đọc dùng để hiển thị cho khách/nhân viên (VD `RES-20260811-0001`), tách biệt với `id` (UUID dùng nội bộ cho FK). Sinh ở tầng service lúc tạo, `@unique` để DB chặn trùng nếu logic sinh code có bug; cách sinh cụ thể (sequence/timestamp-based...) quyết định lúc code module.
+10. **`code`** — mã phiếu dễ đọc dùng để hiển thị cho khách/nhân viên (VD `RES-20260814-000123`), tách biệt với `id` (UUID dùng nội bộ cho FK). `@unique` để DB chặn trùng nếu logic sinh code có bug.
+
+     **Đã chốt: Postgres `SEQUENCE`** (`reservation_code_seq`, tạo bằng migration raw SQL). Chọn nó vì `nextval` atomic thật ở tầng DB — khác hẳn cách đếm row trong ngày rồi +1 (2 request cùng đếm ra một số) và cách Redis `INCR` (mất Redis là counter về 0, sinh mã trùng). Prisma không mô hình hoá sequence độc lập nên không khai trong `schema.prisma`; đã kiểm `migrate diff` không coi nó là drift.
+
+     Hai đánh đổi đã chấp nhận, chỉ ảnh hưởng thẩm mỹ: số **không reset theo ngày**, và `nextval` **không rollback** nên transaction fail vẫn ăn mất một số, dãy có lỗ.
+
+     **Phần ngày lấy theo giờ Việt Nam tường minh** (`Intl.DateTimeFormat` với `timeZone: "Asia/Ho_Chi_Minh"`), không dùng giờ local của process. Nếu dùng `getFullYear()` thì máy dev (ICT) và container production (UTC) cho ra hai mã khác nhau cho cùng một thời điểm. Hệ quả có chủ ý: mã có thể lệch ngày với `createdAt` (lưu UTC) trong khung 00:00–07:00 giờ VN — chấp nhận được vì `code` là nhãn hiển thị, muốn lọc theo ngày thì dùng `createdAt`.
+
+---
+
+## API đã triển khai
+
+| Method | Path | Chức năng nghiệp vụ | Ghi `Inventory` |
+|---|---|---|---|
+| `POST` | `/reservations` | Khách bấm "Giữ chỗ" — kiểm đủ hàng, khoá tồn, tạo phiếu | ✅ `reserved +=` |
+| `GET` | `/reservations` | Khách xem phiếu của mình; nhân viên xem hàng đang bị treo ở kho mình | ❌ |
+| `GET` | `/reservations/:id` | Chi tiết phiếu + dòng hàng + còn bao lâu hết hạn | ❌ |
+| `PATCH` | `/reservations/:id/cancel` | Nhả hàng về bán tiếp ngay, không chờ hết 30 phút | ✅ `reserved -=` |
+
+`GET /reservations` nhận: `page`, `limit`, `status`, `code`, `warehouseId`, `skuId`, `from`, `to`. Sắp xếp mặc định `createdAt` giảm dần (chứng từ, khác module `inventory` sắp theo mã). `skuId` lọc bằng `items.some` — phục vụ câu hỏi *"onHand 50 mà available 2, ai đang giữ 48 cái kia"*. `from`/`to` lọc theo `createdAt` để drill-down từ dashboard.
+
+## Phân quyền
+
+| Hành động | CUSTOMER | STAFF | MANAGER | ADMIN |
+|---|---|---|---|---|
+| Tạo phiếu | ✅ cho chính mình | ❌ | ❌ | ❌ |
+| Xem danh sách | ✅ phiếu của mình | ✅ kho mình | ✅ kho mình | ✅ tất cả |
+| Xem chi tiết | ✅ phiếu của mình | ✅ kho mình | ✅ kho mình | ✅ tất cả |
+| Huỷ phiếu | ✅ phiếu của mình, chỉ khi `PENDING` | ❌ | ✅ kho mình | ✅ tất cả |
+
+- Ngoài phạm vi trả **404** chứ không phải 403 — để không lộ ra rằng phiếu đó có tồn tại ở kho khác.
+- Manager/Staff **không gắn kho** thì danh sách trả rỗng (fail closed), không phải thấy tất cả.
+- **STAFF không được huỷ**: nới quyền về sau chỉ là thêm một role vào `authorize`, còn thu hồi quyền đã phát hành thì phải đụng tới quy trình đang chạy. Tình huống "khách gọi hotline mà Manager không có mặt" là vấn đề trực ca, không nên nới quyền để bù.
+- **`cancelReason` bắt buộc khi Manager/Admin huỷ**, không bắt buộc khi khách tự huỷ: khách huỷ phiếu của chính mình thì `customerId` đã nói ai làm, nhân viên huỷ đơn người khác thì phải giải trình.
+- **Chi tiết ẩn `cancelledBy` với CUSTOMER** — tên nhân viên là thông tin nội bộ. Khách vẫn thấy `cancelledAt` và `cancelReason` nên đủ biết phiếu bị huỷ lúc nào, vì sao.
+
+## Luật huỷ và hết hạn
+
+Ba đường cùng dẫn tới "nhả `reserved`": khách huỷ, nhân viên huỷ, job hết hạn. Cả ba **bắt buộc** đi qua cùng một chốt:
+
+```sql
+UPDATE "Reservation" SET status = ... WHERE id = ? AND status = 'PENDING'
+```
+
+Đổi status là **điều kiện**, không phải hệ quả. 0 dòng nghĩa là người khác đã xử lý xong trước. Không có chốt này thì khách bấm huỷ đúng giây job hết hạn chạy sẽ trừ `reserved` **hai lần** → `available` phình ảo → bán vượt số hàng thật có.
+
+Khác nhau giữa ba đường:
+
+| | Huỷ (API) | Hết hạn (job) |
+|---|---|---|
+| Status | `CANCELLED` + `cancelledAt` + `cancelledByUserId` | `EXPIRED` + `expiredAt`, hai field kia để `null` |
+| `InventoryMovement.createdByUserId` | id người bấm | **`null`** — hệ thống tự làm |
+| Khi `updateMany` trả 0 dòng | **409** — người dùng cần biết vì sao không được | **Thoát êm** — job chạy nền, không ai đọc lỗi |
+
+## Hợp đồng với frontend — `Idempotency-Key`
+
+Header **bắt buộc** cho `POST /reservations`, thiếu là 400.
+
+> Client sinh UUID **một lần cho một ý định đặt hàng**, rồi dùng lại cho mọi lần gửi lại của chính ý định đó.
+
+Sinh UUID mới **mỗi lần bấm nút** thì 2 lần bấm ra 2 key khác nhau, server thấy 2 request hợp lệ và tạo 2 phiếu — **cơ chế chống trùng mất tác dụng hoàn toàn**. Cụ thể: sinh lúc mở form (hoặc lúc bấm lần đầu), giữ nguyên tới khi nhận được response cuối cùng, xong mới bỏ.
+
+## Đã chốt KHÔNG làm giới hạn chống lạm dụng
+
+Giữ chỗ miễn phí nên về lý thuyết một khách có thể khoá sạch kho trong 30 phút. **Đã cân nhắc rồi bỏ** toàn bộ: giới hạn số phiếu `PENDING`/customer, giới hạn số lượng/SKU, giới hạn tổng lượng đang giữ, giới hạn theo % `available`, trần số SKU/phiếu, và `pg_advisory_xact_lock` để chống race cho các phép đếm đó.
+
+Ba lớp phòng vệ được coi là đủ:
+
+| Lớp | Chặn cái gì |
+|---|---|
+| Verify email | Tạo tài khoản hàng loạt để lách |
+| TTL 30 phút | Đặt trần thời gian, hàng tự nhả về |
+| `available` | Không giữ được quá số hàng thật có |
+
+Lý do bỏ: (1) bài toán không có lời giải tối ưu — mọi mức siết đều đánh đổi "chặn kẻ lạm dụng" lấy "chặn nhầm khách thật" theo đúng tỉ lệ; (2) thiệt hại **tự lành** sau TTL, khác hẳn oversell/lệch tồn là hỏng vĩnh viễn — đây là **chính sách kinh doanh**, không phải bug đúng đắn; (3) thêm sau là ràng buộc chặt hơn, không phá contract.
+
+Lỗ hổng chấp nhận có ý thức: kho còn ít hơn nhu cầu thì 1 khách vẫn ôm sạch · hết hạn rồi giữ lại ngay, lặp vô hạn · lách bằng nhiều tài khoản.
+
+Hai thứ **vẫn làm** vì thuộc tính đúng của con số chứ không phải chính sách: `quantity` phải là số nguyên dương (số âm làm `reserved` giảm → `available` tăng ảo → oversell thật), và client gửi trùng `skuId` thì **gộp cộng số lượng** ở service (không gộp thì cùng một dòng `Inventory` bị tính hai lần).
+
+## Tự động hết hạn
+
+- **Đường chính:** BullMQ delayed job hẹn đúng `expiresAt`, đặt lịch **sau khi transaction commit**. Hẹn bên trong transaction mà rollback thì job vẫn tồn tại và sẽ đi nhả hàng của một phiếu chưa từng ra đời.
+- **Lưới đỡ:** job lặp 15 phút quét `PENDING AND expiresAt < NOW()`, cho ca commit xong nhưng Redis chết nên mất job. Mỗi phiếu một transaction riêng — gom hết vào một transaction sẽ khoá quá nhiều dòng `Inventory` cùng lúc và chặn khách đang mua.
+- Worker tách khỏi Express (`src/queues/`), khởi động từ `server.ts`. Muốn chạy process riêng chỉ cần thêm entry gọi `createReservationWorker()` + `registerSweepJob()`, không sửa logic.
+- Producer và worker **mỗi bên một connection Redis** với `maxRetriesPerRequest: null`: worker dùng lệnh blocking `BZPOPMIN`, dùng chung thì producer không add job được; và Redis chính của app để `3` nên truyền vào sẽ throw.
+
+## `utils/inventory.core.ts` — khuôn dùng chung cho mọi module ghi `Inventory`
+
+Rút ra sau khi `reservation` có đủ 3 chỗ ghi thật (tạo, huỷ, hết hạn), không thiết kế trước.
+
+```
+lockInventoryRows(tx, warehouseId, skuIds)      → luôn ORDER BY "skuId" trước FOR UPDATE
+applyInventoryDeltas(tx, rows, deltas, meta)    → update + ghi movement, CÙNG transaction
+```
+
+Chỉ bọc phần **bất biến giữa mọi module**: thứ tự khoá, lấy before/after từ dòng đã khoá, ghi `InventoryMovement` cùng transaction. Điều kiện chặn nghiệp vụ **để lại ở caller** vì mỗi module một kiểu — `reservation` xét `available`, `outbound` xét cả `onHand` lẫn `reserved`, `inbound` không xét gì.
+
+Lý do bọc `ORDER BY "skuId"`: bỏ nó đi thì 2 giao dịch đụng cùng bộ SKU theo thứ tự ngược nhau sẽ ôm chéo lock, **mà test tuần tự vẫn pass 100%** — chỉ lộ khi chạy đồng thời. Gói lại một chỗ để không module nào chép lệch được.
+
+`deltas` là số **cộng thêm** (âm là trừ), không phải giá trị tuyệt đối: hai luồng cùng chạy mà ghi giá trị tuyệt đối sẽ đè nhau, còn `increment` thì DB tự cộng dồn trên dòng đã khoá.
+
+**`inventory-adjustment` sẽ không dùng file này** — nó khoá optimistic bằng `version`, không dùng `FOR UPDATE`.

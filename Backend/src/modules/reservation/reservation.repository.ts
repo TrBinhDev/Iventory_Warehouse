@@ -1,28 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma.js";
 
-// QueryRaw không có type tự sinh nên khai tay
-export interface LockedInventoryRow {
-  id: string;
-  skuId: string;
-  quantityOnHand: number;
-  quantityReserved: number;
-}
-
-// Khóa các dòng tồn của phiếu ORDER BY trước FOR UPDATE để mọi transaction khóa cùng thứ tự tránh deadlock
-export function lockInventories(
-  tx: Prisma.TransactionClient,
-  warehouseId: string,
-  skuIds: string[],
-) {
-  return tx.$queryRaw<LockedInventoryRow[]>`
-    SELECT id, "skuId", "quantityOnHand", "quantityReserved"
-    FROM "Inventory"
-    WHERE "warehouseId" = ${warehouseId}::uuid AND "skuId" IN (${Prisma.join(skuIds)})
-    ORDER BY "skuId"
-    FOR UPDATE
-  `;
-}
+// Khoá tồn + cập nhật + ghi movement đã chuyển sang utils/inventory.core.ts để mọi module
+// nghiệp vụ dùng chung một cách khoá duy nhất.
 
 // Ép giờ VN thay vì giờ local của process — cùng code chạy ở container UTC hay máy dev đều ra 1 kết quả
 const CODE_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
@@ -63,21 +43,6 @@ export function findSkusForReservation(skuIds: string[]) {
   });
 }
 
-// Tăng số đang giữ của 1 dòng tồn — không đụng quantityOnHand
-export function increaseReserved(
-  tx: Prisma.TransactionClient,
-  inventoryId: string,
-  quantity: number,
-) {
-  return tx.inventory.update({
-    where: { id: inventoryId },
-    data: {
-      quantityReserved: { increment: quantity },
-      version: { increment: 1 },
-    },
-  });
-}
-
 // Tạo phiếu kèm toàn bộ dòng item trong 1 lệnh
 export function createReservationWithItems(
   tx: Prisma.TransactionClient,
@@ -111,14 +76,6 @@ export function createReservationWithItems(
       },
     },
   });
-}
-
-// Ghi audit log biến động tồn — 1 row cho 1 SKU, cùng transaction với thao tác đổi Inventory
-export function createMovements(
-  tx: Prisma.TransactionClient,
-  data: Prisma.InventoryMovementCreateManyInput[],
-) {
-  return tx.inventoryMovement.createMany({ data });
 }
 
 // Lấy phiếu để kiểm quyền + trạng thái trước khi vào transaction
@@ -160,21 +117,6 @@ export function findExpiredPendingIds(limit: number) {
     select: { id: true },
     orderBy: { expiresAt: "asc" },
     take: limit,
-  });
-}
-
-// Giảm số đang giữ — CHECK constraint reserved >= 0 dưới DB là lưới đỡ nếu logic sai
-export function decreaseReserved(
-  tx: Prisma.TransactionClient,
-  inventoryId: string,
-  quantity: number,
-) {
-  return tx.inventory.update({
-    where: { id: inventoryId },
-    data: {
-      quantityReserved: { decrement: quantity },
-      version: { increment: 1 },
-    },
   });
 }
 

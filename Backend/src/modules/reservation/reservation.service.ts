@@ -8,6 +8,10 @@ import {
   claimIdempotencyKey,
   releaseIdempotencyKey,
 } from "../../utils/idempotency.util.js";
+import {
+  applyInventoryDeltas,
+  lockInventoryRows,
+} from "../../utils/inventory.core.js";
 import { scheduleExpireJob } from "../../queues/reservation.queue.js";
 import * as reservationRepository from "./reservation.repository.js";
 import type {
@@ -92,11 +96,7 @@ export async function createReservation(
     const expiresAt = new Date(Date.now() + env.RESERVATION_TTL_MINUTES * 60_000);
 
     const reservation = await prisma.$transaction(async (tx) => {
-      const rows = await reservationRepository.lockInventories(
-        tx,
-        input.warehouseId,
-        skuIds,
-      );
+      const rows = await lockInventoryRows(tx, input.warehouseId, skuIds);
 
       // Không lazy-create: kho chưa khai báo tồn cho SKU thì không giữ chỗ được
       if (rows.length !== items.length) {
@@ -130,11 +130,6 @@ export async function createReservation(
         );
       }
 
-      for (const item of items) {
-        const row = rowBySkuId.get(item.skuId)!;
-        await reservationRepository.increaseReserved(tx, row.id, item.quantity);
-      }
-
       const code = await reservationRepository.nextReservationCode(tx);
 
       const created = await reservationRepository.createReservationWithItems(tx, {
@@ -149,23 +144,18 @@ export async function createReservation(
         })),
       });
 
-      // onHand before = after vì giữ chỗ chỉ đụng reserved
-      const movements: Prisma.InventoryMovementCreateManyInput[] = items.map((item) => {
-        const row = rowBySkuId.get(item.skuId)!;
-        return {
-          inventoryId: row.id,
-          createdByUserId: actor.id,
+      // Chỉ đụng reserved, onHand giữ nguyên nên không truyền
+      await applyInventoryDeltas(
+        tx,
+        rowBySkuId,
+        items.map((item) => ({ skuId: item.skuId, reserved: item.quantity })),
+        {
           movementType: "RESERVE",
           referenceType: "RESERVATION",
           referenceId: created.id,
-          onHandBefore: row.quantityOnHand,
-          onHandAfter: row.quantityOnHand,
-          reservedBefore: row.quantityReserved,
-          reservedAfter: row.quantityReserved + item.quantity,
-        };
-      });
-
-      await reservationRepository.createMovements(tx, movements);
+          createdByUserId: actor.id,
+        },
+      );
 
       return created;
     });
@@ -355,32 +345,22 @@ async function releaseReservedItems(
   actorId: string | null,
 ): Promise<void> {
   const items = await reservationRepository.findItemsByReservationId(tx, reservationId);
-  const skuIds = [...items].map((item) => item.skuId).sort((a, b) => a.localeCompare(b));
+  const skuIds = items.map((item) => item.skuId);
 
-  // Khoá cùng thứ tự với lúc tạo phiếu (ORDER BY "skuId") để 2 luồng không ôm chéo lock
-  const rows = await reservationRepository.lockInventories(tx, warehouseId, skuIds);
+  const rows = await lockInventoryRows(tx, warehouseId, skuIds);
   const rowBySkuId = new Map(rows.map((row) => [row.skuId, row]));
 
-  const movements: Prisma.InventoryMovementCreateManyInput[] = [];
-
-  for (const item of items) {
-    const row = rowBySkuId.get(item.skuId)!;
-    await reservationRepository.decreaseReserved(tx, row.id, item.quantity);
-
-    movements.push({
-      inventoryId: row.id,
-      createdByUserId: actorId,
+  await applyInventoryDeltas(
+    tx,
+    rowBySkuId,
+    items.map((item) => ({ skuId: item.skuId, reserved: -item.quantity })),
+    {
       movementType: "RELEASE",
       referenceType: "RESERVATION",
       referenceId: reservationId,
-      onHandBefore: row.quantityOnHand,
-      onHandAfter: row.quantityOnHand,
-      reservedBefore: row.quantityReserved,
-      reservedAfter: row.quantityReserved - item.quantity,
-    });
-  }
-
-  await reservationRepository.createMovements(tx, movements);
+      createdByUserId: actorId,
+    },
+  );
 }
 
 // Hết hạn phiếu do job chạy nền: KHÔNG throw khi phiếu đã đóng trước đó — khác cancel ở chỗ
