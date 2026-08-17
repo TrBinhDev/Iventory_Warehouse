@@ -27,7 +27,7 @@ Không tự ý tạo file mới hoặc sửa/ghi đè file đã có sẵn nếu 
   Lỗi: { success: false, error: { code, message, details } } — code là string định danh (VD: OUT_OF_STOCK, VERSION_CONFLICT), không phải số; details chứa thêm thông tin lỗi (VD: field nào validate sai), null nếu không có
   HTTP status code vẫn set đúng chuẩn REST song song (res.status(409).json(...)), success trong body không thay thế status code mà chỉ tiện cho frontend check nhanh
 - Commit message theo Conventional Commits (`feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `style`)
-- Import không cần `.js` ở cuối (dự án dùng `moduleResolution: NodeNext` — xác nhận lại theo `tsconfig.json` hiện tại trước khi code, vì có thể đã đổi)
+- Import cần `.js` ở cuối (dự án dùng `moduleResolution: NodeNext` — xác nhận lại theo `tsconfig.json` hiện tại trước khi code, vì có thể đã đổi)
 - Mọi thao tác thay đổi `Inventory` (onHand/reserved) đều phải nằm trong 1 Prisma transaction, kèm ghi `InventoryMovement` trong cùng transaction đó — không tách riêng
 
 ## 6. Tóm tắt sau khi xong 1 phần
