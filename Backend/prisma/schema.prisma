@@ -123,6 +123,11 @@ model Warehouse {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  // Index trigram cho ô tìm kiếm gộp (GET /warehouses?search=) — btree không dùng được
+  // cho ILIKE '%...%'. Khai ở đây thay vì raw SQL, nếu không `migrate diff` sẽ sinh DROP.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([phone(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 enum SupplierStatus {
@@ -148,6 +153,12 @@ model Supplier {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  // Index trigram cho ô tìm kiếm gộp (GET /suppliers?search=)
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([phone(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([contactName(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([email(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 enum ProductStatus {

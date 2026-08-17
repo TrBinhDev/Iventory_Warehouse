@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { normalizePhone } from "../../utils/phone.util.js";
 import { assertNoReferences } from "../../utils/reference.util.js";
 import * as warehouseRepository from "./warehouse.repository.js";
 import type {
@@ -24,6 +25,19 @@ export async function listWarehouses(query: ListWarehousesQuery) {
   const where: Prisma.WarehouseWhereInput = {};
   if (query.status) {
     where.status = query.status;
+  }
+
+  if (query.search) {
+    // Nhánh sđt so bằng chuỗi ĐÃ CHUẨN HOÁ, không so nguyên văn: dưới DB số luôn ở dạng
+    // 0xxxxxxxxx (xem phone.util.ts). Gõ chữ thì normalizePhone trả rỗng -> bỏ nhánh đó đi.
+    const phoneQuery = normalizePhone(query.search);
+
+    where.OR = [
+      { name: { contains: query.search, mode: "insensitive" } },
+      { code: { contains: query.search, mode: "insensitive" } },
+      { address: { contains: query.search, mode: "insensitive" } },
+      ...(phoneQuery ? [{ phone: { contains: phoneQuery } }] : []),
+    ];
   }
 
   const skip = (query.page - 1) * query.limit;
