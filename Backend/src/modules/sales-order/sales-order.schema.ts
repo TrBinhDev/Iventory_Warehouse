@@ -33,3 +33,10 @@ export const salesOrderIdParamSchema = z.object({
 });
 
 export type SalesOrderIdParam = z.infer<typeof salesOrderIdParamSchema>;
+
+// Body huỷ đơn — lý do bắt buộc khi nhân viên huỷ đơn của khách, service kiểm theo role
+export const cancelSalesOrderSchema = z.object({
+  cancelReason: z.string().trim().min(1).max(500).optional(),
+});
+
+export type CancelSalesOrderInput = z.infer<typeof cancelSalesOrderSchema>;

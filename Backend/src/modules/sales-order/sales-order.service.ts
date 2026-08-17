@@ -11,6 +11,7 @@ import { applyInventoryDeltas, lockInventoryRows } from "../../utils/inventory.c
 import { recordStatusChange } from "../../utils/status.core.js";
 import * as salesOrderRepository from "./sales-order.repository.js";
 import type {
+  CancelSalesOrderInput,
   CreateFromReservationInput,
   CreateSalesOrderInput,
 } from "./sales-order.schema.js";
@@ -70,6 +71,27 @@ async function insertOrder(
     totalAmount: sumAmount(data.lines),
     items: data.lines,
   });
+}
+
+// Khách chỉ đụng đơn của mình, Manager chỉ đụng đơn kho mình — trả 404 để không lộ đơn có
+// tồn tại ở kho khác. Staff bị chặn từ route nên tới đây chỉ còn câu hỏi phạm vi.
+function assertInScope(
+  actor: Actor,
+  order: { customerId: string; warehouseId: string },
+): void {
+  if (actor.role === "ADMIN") return;
+
+  const inScope =
+    actor.role === "CUSTOMER"
+      ? order.customerId === actor.id
+      : order.warehouseId === actor.warehouseId;
+
+  if (!inScope) {
+    throw new NotFoundError(
+      Message.SALES_ORDER.NOT_FOUND.message,
+      Message.SALES_ORDER.NOT_FOUND.code,
+    );
+  }
 }
 
 // LUỒNG A — mua thẳng: khoá tồn → kiểm đủ hàng → tăng reserved → tạo đơn, trong 1 transaction.
@@ -281,4 +303,108 @@ export async function createSalesOrderFromReservation(
 
     throw err;
   }
+}
+
+// Trạng thái nào huỷ được, tuỳ người bấm. Khách chỉ huỷ khi chưa có tiền vào; từ lúc đã thu
+// tiền thì phải có người của kho đứng tên — cùng lý lẽ với việc chốt pay là Manager.
+// COMPLETED không nằm trong cả hai danh sách: hàng đã xuất kho rồi, muốn lấy lại phải làm
+// phiếu Inbound với lý do CUSTOMER_RETURN, không phải huỷ đơn.
+const CANCELLABLE_BY_CUSTOMER = ["PENDING"] as const;
+const CANCELLABLE_BY_STAFF = ["PENDING", "PAID", "CONFIRMED"] as const;
+
+// Huỷ đơn và nhả reserved về bán tiếp ngay.
+//
+// Một endpoint hai kết quả: đơn chưa thu tiền thành CANCELLED, đơn đã thu tiền thành REFUNDED.
+// Tác động tồn kho y hệt nhau (nhả reserved), chỉ khác nghĩa kế toán — gộp hết thành CANCELLED
+// thì mất dấu khoản phải hoàn, tách 2 endpoint thì người gọi phải tự đoán đơn đang ở đâu.
+export async function cancelSalesOrder(
+  actor: Actor,
+  id: string,
+  input: CancelSalesOrderInput,
+) {
+  const order = await salesOrderRepository.findSalesOrderById(id);
+  if (!order) {
+    throw new NotFoundError(
+      Message.SALES_ORDER.NOT_FOUND.message,
+      Message.SALES_ORDER.NOT_FOUND.code,
+    );
+  }
+
+  assertInScope(actor, order);
+
+  // Nhân viên huỷ đơn người khác thì phải giải trình; khách tự huỷ thì customerId đã nói ai làm
+  if (actor.role !== "CUSTOMER" && !input.cancelReason) {
+    throw new BadRequestError(
+      Message.SALES_ORDER.CANCEL_REASON_REQUIRED.message,
+      Message.SALES_ORDER.CANCEL_REASON_REQUIRED.code,
+    );
+  }
+
+  const allowed: readonly string[] =
+    actor.role === "CUSTOMER" ? CANCELLABLE_BY_CUSTOMER : CANCELLABLE_BY_STAFF;
+
+  // Chốt SỚM: báo lỗi cho ca thường mà không phải mở transaction. Bản ghi đã đọc sẵn ở trên nên
+  // miễn phí. KHÔNG phải chốt chống race — chốt đó nằm trong markSalesOrderClosed dưới đây.
+  if (!allowed.includes(order.status)) {
+    throw new ConflictError(
+      Message.SALES_ORDER.INVALID_STATUS.message,
+      Message.SALES_ORDER.INVALID_STATUS.code,
+    );
+  }
+
+  // Đã thu tiền thì huỷ là phải hoàn — trạng thái khác nhau vì nghĩa kế toán khác nhau
+  const closedAt = new Date();
+  const targetStatus = order.status === "PENDING" ? "CANCELLED" : "REFUNDED";
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // Chốt CHỐNG RACE (bắt buộc): khoá theo ĐÚNG trạng thái đã đọc, không phải theo danh sách.
+    // Khoá theo danh sách thì đơn PENDING bị Manager khác chuyển sang PAID xen giữa vẫn khớp,
+    // và ta sẽ ghi CANCELLED cho một đơn đã thu tiền. 0 dòng nghĩa là người khác xử lý trước.
+    const closed = await salesOrderRepository.markSalesOrderClosed(tx, id, order.status, {
+      status: targetStatus,
+      cancelReason: input.cancelReason ?? null,
+      // Chỉ set đúng một mốc thời gian khớp với trạng thái đích, không set cả hai —
+      // cùng cách reservation tách cancelledAt với expiredAt theo nguồn gốc.
+      ...(targetStatus === "CANCELLED" ? { cancelledAt: closedAt } : { refundedAt: closedAt }),
+    });
+
+    if (closed.count === 0) {
+      throw new ConflictError(
+        Message.SALES_ORDER.INVALID_STATUS.message,
+        Message.SALES_ORDER.INVALID_STATUS.code,
+      );
+    }
+
+    // Đặt sau chốt count === 0 nên đơn bị người khác đóng trước không đẻ dòng lịch sử thừa
+    await recordStatusChange(tx, {
+      documentType: "SALES_ORDER",
+      documentId: id,
+      fromStatus: order.status,
+      toStatus: targetStatus,
+      changedByUserId: actor.id,
+    });
+
+    const lines = await salesOrderRepository.findSalesOrderItems(tx, id);
+    const skuIds = lines.map((line) => line.skuId);
+
+    const rows = await lockInventoryRows(tx, order.warehouseId, skuIds);
+    const rowBySkuId = new Map(rows.map((row) => [row.skuId, row]));
+
+    // Nhả reserved. onHand không đụng vì đơn chưa từng trừ onHand — hàng vẫn nằm trong kho.
+    await applyInventoryDeltas(
+      tx,
+      rowBySkuId,
+      lines.map((line) => ({ skuId: line.skuId, reserved: -line.quantity })),
+      {
+        movementType: "RELEASE",
+        referenceType: "SALES_ORDER",
+        referenceId: id,
+        createdByUserId: actor.id,
+      },
+    );
+
+    return salesOrderRepository.findSalesOrderWithItems(tx, id);
+  });
+
+  return updated!;
 }

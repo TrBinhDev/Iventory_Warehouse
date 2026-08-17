@@ -5,6 +5,7 @@ import { BadRequestError } from "../../errors/appError.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as salesOrderService from "./sales-order.service.js";
 import { idempotencyKeySchema } from "./sales-order.schema.js";
+import type { SalesOrderIdParam } from "./sales-order.schema.js";
 
 // Đọc header Idempotency-Key — validate middleware chỉ nhận body/query/params nên đọc tay ở đây
 function requireIdempotencyKey(req: Request): string {
@@ -43,4 +44,11 @@ export async function createSalesOrderFromReservation(
   );
 
   sendSuccess(res, HttpStatus.CREATED, order);
+}
+
+// Xử lý request huỷ đơn — trả CANCELLED hoặc REFUNDED tuỳ đơn đã thu tiền chưa
+export async function cancelSalesOrder(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as SalesOrderIdParam;
+  const order = await salesOrderService.cancelSalesOrder(req.user!, id, req.body);
+  sendSuccess(res, HttpStatus.OK, order);
 }

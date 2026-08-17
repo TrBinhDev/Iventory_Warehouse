@@ -77,6 +77,55 @@ export function createSalesOrderWithItems(
   });
 }
 
+// Lấy đơn để kiểm quyền + trạng thái trước khi vào transaction
+export function findSalesOrderById(id: string) {
+  return prisma.salesOrder.findUnique({
+    where: { id },
+    select: { id: true, customerId: true, warehouseId: true, status: true },
+  });
+}
+
+// Đóng đơn (huỷ/hoàn tiền) — status vừa là điều kiện vừa là khoá.
+// fromStatus phải là trạng thái ĐÃ ĐỌC ở trên, không phải danh sách: có vậy mới chắc
+// trạng thái đích tính ra khớp với trạng thái thật lúc ghi (đơn PENDING bị người khác
+// chuyển sang PAID xen giữa thì câu này trả 0 dòng chứ không âm thầm ghi nhầm CANCELLED).
+export function markSalesOrderClosed(
+  tx: Prisma.TransactionClient,
+  id: string,
+  fromStatus: Prisma.SalesOrderWhereInput["status"],
+  data: Prisma.SalesOrderUpdateManyMutationInput,
+) {
+  return tx.salesOrder.updateMany({ where: { id, status: fromStatus }, data });
+}
+
+// Lấy dòng hàng của đơn để biết nhả bao nhiêu cho từng SKU
+export function findSalesOrderItems(tx: Prisma.TransactionClient, salesOrderId: string) {
+  return tx.salesOrderItem.findMany({
+    where: { salesOrderId },
+    select: { skuId: true, quantity: true },
+  });
+}
+
+// Lấy đơn kèm item để trả về cho client sau khi đổi trạng thái
+export function findSalesOrderWithItems(tx: Prisma.TransactionClient, id: string) {
+  return tx.salesOrder.findUnique({
+    where: { id },
+    include: {
+      items: {
+        select: {
+          id: true,
+          skuId: true,
+          quantity: true,
+          unitPrice: true,
+          sku: {
+            select: { skuCode: true, product: { select: { name: true } } },
+          },
+        },
+      },
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Đọc/ghi bảng của module reservation.
 //

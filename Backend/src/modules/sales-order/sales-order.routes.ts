@@ -4,8 +4,10 @@ import { authorize } from "../../middlewares/authorize.js";
 import { validate } from "../../middlewares/validate.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import {
+  cancelSalesOrderSchema,
   createFromReservationSchema,
   createSalesOrderSchema,
+  salesOrderIdParamSchema,
 } from "./sales-order.schema.js";
 import * as salesOrderController from "./sales-order.controller.js";
 
@@ -28,6 +30,17 @@ router.post(
   authorize("CUSTOMER"),
   validate(createFromReservationSchema, "body"),
   asyncHandler(salesOrderController.createSalesOrderFromReservation),
+);
+
+// STAFF không được huỷ — cùng lý do với reservation: nới quyền sau thì dễ, thu lại thì khó.
+// Khách chỉ huỷ được đơn còn PENDING, ranh giới đó service ép chứ route không biết.
+router.patch(
+  "/:id/cancel",
+  authenticate,
+  authorize("CUSTOMER", "WAREHOUSE_MANAGER", "ADMIN"),
+  validate(salesOrderIdParamSchema, "params"),
+  validate(cancelSalesOrderSchema, "body"),
+  asyncHandler(salesOrderController.cancelSalesOrder),
 );
 
 export { router as salesOrderRouter };
