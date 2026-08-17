@@ -27,7 +27,7 @@ SKU // Biến thể của Product (mã SKU, giá, thuộc tính...).
 
 ## Inventory
 
-Inventory // Quản lý số lượng tồn kho của từng SKU tại từng Warehouse (quantity, available, reserved, version).
+Inventory // Quản lý số lượng tồn kho của từng SKU tại từng Warehouse (quantityOnHand, quantityReserved, version). KHÔNG có cột available — luôn tính runtime bằng onHand - reserved, lưu sẵn là mở đường cho lệch số.
 
 ## Business
 
@@ -57,4 +57,10 @@ InventoryAdjustmentItem // Danh sách SKU được điều chỉnh trong một p
 
 ## Audit
 
-InventoryMovement // Lưu lịch sử mọi biến động tồn kho (Inbound, Outbound, Transfer, Reservation, Buy Now, Adjustment) phục vụ audit và truy vết.
+InventoryMovement // Lưu lịch sử mọi biến động SỐ LƯỢNG tồn kho (Inbound, Outbound, Transfer, Reservation, Buy Now, Adjustment) phục vụ audit và truy vết.
+
+## History
+
+DocumentStatusHistory // Lưu lịch sử chuyển TRẠNG THÁI của cả 6 loại chứng từ nghiệp vụ — ai bấm bước nào, lúc nào. Polymorphic qua cặp (documentType, documentId), không phải FK.
+
+> **Audit ≠ History, đừng gộp hai bảng.** `InventoryMovement` chỉ ghi ở bước có chạm tồn kho, nên mọi bước chuyển trạng thái không đụng kho (VD `Inbound: DRAFT → CONFIRMED`, `SalesOrder: PENDING → PAID`) là hoàn toàn vô hình với nó. Ngược lại `DocumentStatusHistory` không giữ số before/after từng SKU. Hai bảng bù nhau, không cái nào chứa cái nào — chi tiết ở `Business_DocumentStatusHistory.md`.
