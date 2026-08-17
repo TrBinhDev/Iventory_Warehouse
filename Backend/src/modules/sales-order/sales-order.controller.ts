@@ -73,6 +73,14 @@ export async function payOrder(req: Request, res: Response): Promise<void> {
   sendSuccess(res, HttpStatus.OK, order);
 }
 
+// Xử lý request duyệt đơn đã thu tiền. Không cần Idempotency-Key: bước này không đụng tiền
+// và không có bên thứ ba nào gọi lại.
+export async function confirmOrder(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as SalesOrderIdParam;
+  const order = await salesOrderService.confirmOrder(req.user!, id);
+  sendSuccess(res, HttpStatus.OK, order);
+}
+
 // Xử lý request huỷ đơn — trả CANCELLED hoặc REFUNDED tuỳ đơn đã thu tiền chưa
 export async function cancelSalesOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as unknown as SalesOrderIdParam;

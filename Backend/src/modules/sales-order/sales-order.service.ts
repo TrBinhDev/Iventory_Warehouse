@@ -494,6 +494,61 @@ export async function payOrder(actor: Actor, id: string, idempotencyKey: string)
   }
 }
 
+// Manager/Admin duyệt đơn đã thu tiền, cho phép kho chuẩn bị hàng để xuất.
+//
+// KHÔNG có Idempotency-Key như pay: bước này không đụng tiền, không có bên thứ ba nào gọi lại,
+// và chốt WHERE status='PAID' đã đủ để bấm 2 lần không sinh 2 lần.
+//
+// CONFIRMED là trạng thái CUỐI mà module này chạm tới được. COMPLETED do module outbound đặt
+// khi hàng thật sự rời kho — đơn hàng không tự biết lúc nào hàng đi, phải có người xuất kho.
+export async function confirmOrder(actor: Actor, id: string) {
+  const order = await salesOrderRepository.findSalesOrderById(id);
+  if (!order) {
+    throw new NotFoundError(
+      Message.SALES_ORDER.NOT_FOUND.message,
+      Message.SALES_ORDER.NOT_FOUND.code,
+    );
+  }
+
+  assertInScope(actor, order);
+
+  // Chốt SỚM cho ca thường; chốt chống race thật nằm trong updateSalesOrderStatus dưới đây
+  if (order.status !== "PAID") {
+    throw new ConflictError(
+      Message.SALES_ORDER.INVALID_STATUS.message,
+      Message.SALES_ORDER.INVALID_STATUS.code,
+    );
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    // Chốt CHỐNG RACE: CONFIRMED chỉ đi ra từ PAID. 0 dòng nghĩa là đơn vừa bị huỷ/hoàn hoặc
+    // một Manager khác đã duyệt xong trước.
+    const confirmed = await salesOrderRepository.updateSalesOrderStatus(tx, id, "PAID", {
+      status: "CONFIRMED",
+      confirmedAt: new Date(),
+    });
+
+    if (confirmed.count === 0) {
+      throw new ConflictError(
+        Message.SALES_ORDER.INVALID_STATUS.message,
+        Message.SALES_ORDER.INVALID_STATUS.code,
+      );
+    }
+
+    await recordStatusChange(tx, {
+      documentType: "SALES_ORDER",
+      documentId: id,
+      fromStatus: "PAID",
+      toStatus: "CONFIRMED",
+      changedByUserId: actor.id,
+    });
+
+    return salesOrderRepository.findSalesOrderWithItems(tx, id);
+  });
+
+  return updated!;
+}
+
 // Trạng thái nào huỷ được, tuỳ người bấm. Khách chỉ huỷ khi chưa có tiền vào; từ lúc đã thu
 // tiền thì phải có người của kho đứng tên — cùng lý lẽ với việc chốt pay là Manager.
 // COMPLETED không nằm trong cả hai danh sách: hàng đã xuất kho rồi, muốn lấy lại phải làm

@@ -60,6 +60,16 @@ router.patch(
   asyncHandler(salesOrderController.payOrder),
 );
 
+// Cùng quyền với pay: Manager động vào chứng từ và tiền, Staff động vào hàng (module outbound).
+// CONFIRMED là trạng thái cuối module này chạm tới — COMPLETED do outbound đặt lúc xuất kho thật.
+router.patch(
+  "/:id/confirm",
+  authenticate,
+  authorize("WAREHOUSE_MANAGER", "ADMIN"),
+  validate(salesOrderIdParamSchema, "params"),
+  asyncHandler(salesOrderController.confirmOrder),
+);
+
 // STAFF không được huỷ — cùng lý do với reservation: nới quyền sau thì dễ, thu lại thì khó.
 // Khách chỉ huỷ được đơn còn PENDING, ranh giới đó service ép chứ route không biết.
 router.patch(
