@@ -106,6 +106,40 @@ export function findSalesOrderItems(tx: Prisma.TransactionClient, salesOrderId: 
   });
 }
 
+// Danh sách đơn có phân trang. totalAmount đã lưu sẵn trên header nên không phải cộng lại từ
+// item — chỉ kéo cột quantity để đếm số dòng và tổng số lượng. Sắp mới nhất trước vì đây là
+// chứng từ, không phải danh mục.
+export function findManySalesOrders(
+  where: Prisma.SalesOrderWhereInput,
+  skip: number,
+  take: number,
+) {
+  return prisma.salesOrder.findMany({
+    where,
+    skip,
+    take,
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      code: true,
+      status: true,
+      totalAmount: true,
+      reservationId: true,
+      createdAt: true,
+      paidAt: true,
+      confirmedAt: true,
+      warehouse: { select: { id: true, code: true, name: true } },
+      customer: { select: { id: true, fullName: true } },
+      items: { select: { quantity: true } },
+    },
+  });
+}
+
+// Đếm tổng số đơn khớp filter — dùng cho meta phân trang
+export function countSalesOrders(where: Prisma.SalesOrderWhereInput) {
+  return prisma.salesOrder.count({ where });
+}
+
 // Lấy đơn kèm item để trả về cho client sau khi đổi trạng thái
 export function findSalesOrderWithItems(tx: Prisma.TransactionClient, id: string) {
   return tx.salesOrder.findUnique({

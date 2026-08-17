@@ -5,7 +5,7 @@ import { BadRequestError } from "../../errors/appError.js";
 import { sendSuccess } from "../../utils/response.util.js";
 import * as salesOrderService from "./sales-order.service.js";
 import { idempotencyKeySchema } from "./sales-order.schema.js";
-import type { SalesOrderIdParam } from "./sales-order.schema.js";
+import type { ListSalesOrdersQuery, SalesOrderIdParam } from "./sales-order.schema.js";
 
 // Đọc header Idempotency-Key — validate middleware chỉ nhận body/query/params nên đọc tay ở đây
 function requireIdempotencyKey(req: Request): string {
@@ -44,6 +44,17 @@ export async function createSalesOrderFromReservation(
   );
 
   sendSuccess(res, HttpStatus.CREATED, order);
+}
+
+// Xử lý request lấy danh sách đơn hàng (phân trang)
+export async function listSalesOrders(req: Request, res: Response): Promise<void> {
+  const query = req.query as unknown as ListSalesOrdersQuery;
+  const { items, total } = await salesOrderService.listSalesOrders(req.user!, query);
+  sendSuccess(res, HttpStatus.OK, items, {
+    page: query.page,
+    limit: query.limit,
+    total,
+  });
 }
 
 // Xử lý request huỷ đơn — trả CANCELLED hoặc REFUNDED tuỳ đơn đã thu tiền chưa

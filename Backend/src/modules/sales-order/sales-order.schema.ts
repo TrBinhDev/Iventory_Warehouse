@@ -40,3 +40,24 @@ export const cancelSalesOrderSchema = z.object({
 });
 
 export type CancelSalesOrderInput = z.infer<typeof cancelSalesOrderSchema>;
+
+// Query danh sách đơn — Manager/Staff bị ép cứng kho mình ở service, warehouseId gửi lên bị bỏ qua
+export const listSalesOrdersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z
+    .enum(["PENDING", "PAID", "CONFIRMED", "COMPLETED", "CANCELLED", "REFUNDED"])
+    .optional(),
+  code: z.string().trim().min(1).max(30).optional(),
+  warehouseId: z.uuid("warehouseId phải là UUID hợp lệ").optional(),
+  skuId: z.uuid("skuId phải là UUID hợp lệ").optional(),
+  // Hai cách tìm theo khách: gõ tên/email/số điện thoại vào một ô để tra, hoặc lọc chính xác
+  // khi bấm từ trang khách hàng. Cả hai đều bị bỏ qua với role CUSTOMER — họ vốn chỉ thấy
+  // đơn của chính mình.
+  customer: z.string().trim().min(1).max(255).optional(),
+  customerId: z.uuid("customerId phải là UUID hợp lệ").optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+});
+
+export type ListSalesOrdersQuery = z.infer<typeof listSalesOrdersQuerySchema>;

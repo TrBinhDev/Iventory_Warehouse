@@ -7,6 +7,7 @@ import {
   cancelSalesOrderSchema,
   createFromReservationSchema,
   createSalesOrderSchema,
+  listSalesOrdersQuerySchema,
   salesOrderIdParamSchema,
 } from "./sales-order.schema.js";
 import * as salesOrderController from "./sales-order.controller.js";
@@ -30,6 +31,15 @@ router.post(
   authorize("CUSTOMER"),
   validate(createFromReservationSchema, "body"),
   asyncHandler(salesOrderController.createSalesOrderFromReservation),
+);
+
+// Cả 4 role đều xem được, phạm vi do service ép: khách thấy đơn của mình, nhân viên thấy kho mình
+router.get(
+  "/",
+  authenticate,
+  authorize("CUSTOMER", "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER", "ADMIN"),
+  validate(listSalesOrdersQuerySchema, "query"),
+  asyncHandler(salesOrderController.listSalesOrders),
 );
 
 // STAFF không được huỷ — cùng lý do với reservation: nới quyền sau thì dễ, thu lại thì khó.

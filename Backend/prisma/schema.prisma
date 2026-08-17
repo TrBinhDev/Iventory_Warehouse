@@ -63,6 +63,13 @@ model User {
   @@index([role])
   @@index([status])
   @@index([warehouseId])
+  // Index trigram cho tìm kiếm ILIKE '%...%' (GET /sales-orders?customer= tra bằng tên,
+  // email hoặc số điện thoại). email tuy đã có unique index nhưng btree không dùng được cho
+  // khớp giữa chuỗi. Khai ở đây thay vì tạo bằng raw SQL, nếu không mỗi lần `migrate diff`
+  // Prisma sẽ coi là lệch schema và sinh lệnh DROP INDEX.
+  @@index([fullName(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([email(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([phone(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 // ============================================================

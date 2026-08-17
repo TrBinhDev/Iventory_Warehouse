@@ -8,12 +8,14 @@ import {
   releaseIdempotencyKey,
 } from "../../utils/idempotency.util.js";
 import { applyInventoryDeltas, lockInventoryRows } from "../../utils/inventory.core.js";
+import { normalizePhone } from "../../utils/phone.util.js";
 import { recordStatusChange } from "../../utils/status.core.js";
 import * as salesOrderRepository from "./sales-order.repository.js";
 import type {
   CancelSalesOrderInput,
   CreateFromReservationInput,
   CreateSalesOrderInput,
+  ListSalesOrdersQuery,
 } from "./sales-order.schema.js";
 
 interface Actor {
@@ -303,6 +305,79 @@ export async function createSalesOrderFromReservation(
 
     throw err;
   }
+}
+
+// Danh sách đơn có phân trang — khách thấy đơn của mình, nhân viên thấy đơn kho mình.
+// warehouseId trong query chỉ có tác dụng với ADMIN; Manager/Staff gửi lên cũng bị ghi đè
+// bằng kho của chính họ, không phải bị báo lỗi.
+export async function listSalesOrders(actor: Actor, query: ListSalesOrdersQuery) {
+  const where: Prisma.SalesOrderWhereInput = {};
+
+  if (actor.role === "CUSTOMER") {
+    where.customerId = actor.id;
+    if (query.warehouseId) where.warehouseId = query.warehouseId;
+  } else {
+    if (actor.role === "ADMIN") {
+      if (query.warehouseId) where.warehouseId = query.warehouseId;
+    } else {
+      // Manager/Staff không gắn kho thì không thấy gì (fail closed), không phải thấy tất cả
+      if (!actor.warehouseId) return { items: [], total: 0 };
+      where.warehouseId = actor.warehouseId;
+    }
+
+    // Chỉ nhân viên mới lọc theo khách. Đặt trong nhánh này chứ không đặt chung phía dưới:
+    // để chung thì khách gửi customerId của người khác sẽ GHI ĐÈ where.customerId vừa ép ở
+    // trên và xem được đơn người ta.
+    if (query.customerId) where.customerId = query.customerId;
+
+    // Một ô tìm kiếm cho 3 cột: nhân viên nghe điện thoại có gì gõ nấy, không phải chọn
+    // trước là đang tra bằng tên hay email hay số máy.
+    if (query.customer) {
+      // Nhánh sđt so bằng chuỗi ĐÃ CHUẨN HOÁ, không so nguyên văn: dưới DB số luôn ở dạng
+      // 0xxxxxxxxx (xem phone.util.ts), nên gõ "090 123 4567" hay "+84901234567" phải quy về
+      // cùng dạng mới khớp. Gõ chữ thì normalizePhone trả rỗng -> bỏ hẳn nhánh này đi.
+      const phoneQuery = normalizePhone(query.customer);
+
+      where.customer = {
+        OR: [
+          { fullName: { contains: query.customer, mode: "insensitive" } },
+          { email: { contains: query.customer, mode: "insensitive" } },
+          ...(phoneQuery ? [{ phone: { contains: phoneQuery } }] : []),
+        ],
+      };
+    }
+  }
+
+  if (query.status) where.status = query.status;
+  if (query.code) where.code = { contains: query.code, mode: "insensitive" };
+
+  // Đơn nào đang giữ SKU này. Cùng vai trò với filter cùng tên bên reservation: từ khi có
+  // module này, hàng bị giữ nằm ở CẢ HAI chỗ nên phải tra được cả hai mới ra đủ.
+  if (query.skuId) where.items = { some: { skuId: query.skuId } };
+
+  // Lọc theo ngày tạo — đây là thứ thay cho TTL đơn chưa thanh toán: nhân viên lọc
+  // status=PENDING kèm to=<ngày> là ra hết đơn cũ bị bỏ ngang, huỷ hàng loạt.
+  if (query.from || query.to) {
+    where.createdAt = {
+      ...(query.from ? { gte: query.from } : {}),
+      ...(query.to ? { lte: query.to } : {}),
+    };
+  }
+
+  const skip = (query.page - 1) * query.limit;
+
+  const [rows, total] = await Promise.all([
+    salesOrderRepository.findManySalesOrders(where, skip, query.limit),
+    salesOrderRepository.countSalesOrders(where),
+  ]);
+
+  const items = rows.map(({ items: lines, ...rest }) => ({
+    ...rest,
+    itemCount: lines.length,
+    totalQuantity: lines.reduce((sum, line) => sum + line.quantity, 0),
+  }));
+
+  return { items, total };
 }
 
 // Trạng thái nào huỷ được, tuỳ người bấm. Khách chỉ huỷ khi chưa có tiền vào; từ lúc đã thu
