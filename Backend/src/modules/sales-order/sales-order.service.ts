@@ -380,6 +380,51 @@ export async function listSalesOrders(actor: Actor, query: ListSalesOrdersQuery)
   return { items, total };
 }
 
+// Chi tiết 1 đơn. Khách KHÔNG được thấy timeline vì trong đó có tên nhân viên — thông tin nội
+// bộ, cùng lý do reservation ẩn cancelledBy. Khách không mất gì: các mốc paidAt/confirmedAt/
+// cancelledAt/refundedAt vẫn nằm trên đơn nên vẫn biết đơn đi tới đâu, lúc nào.
+export async function getSalesOrderById(actor: Actor, id: string) {
+  const order = await salesOrderRepository.findSalesOrderDetail(id);
+  if (!order) {
+    throw new NotFoundError(
+      Message.SALES_ORDER.NOT_FOUND.message,
+      Message.SALES_ORDER.NOT_FOUND.code,
+    );
+  }
+
+  assertInScope(actor, order);
+
+  const isCustomer = actor.role === "CUSTOMER";
+
+  // Chỉ tra bảng lịch sử khi người xem được phép thấy — khách xem đơn của mình là đường phổ
+  // biến nhất, đường đó không tốn thêm câu nào.
+  const timeline = isCustomer ? [] : await salesOrderRepository.findSalesOrderTimeline(id);
+
+  // warehouseId/customerId chỉ dùng để check phạm vi, đã có trong warehouse/customer nên bỏ đi
+  const { warehouseId, customerId, items, ...rest } = order;
+
+  return {
+    ...rest,
+    ...(isCustomer
+      ? {}
+      : {
+          timeline: timeline.map((row) => ({
+            fromStatus: row.fromStatus,
+            toStatus: row.toStatus,
+            note: row.note,
+            changedAt: row.createdAt,
+            changedBy: row.changedBy,
+          })),
+        }),
+    items: items.map((item) => ({
+      ...item,
+      lineTotal: item.unitPrice.mul(item.quantity),
+    })),
+    itemCount: items.length,
+    totalQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
+  };
+}
+
 // Trạng thái nào huỷ được, tuỳ người bấm. Khách chỉ huỷ khi chưa có tiền vào; từ lúc đã thu
 // tiền thì phải có người của kho đứng tên — cùng lý lẽ với việc chốt pay là Manager.
 // COMPLETED không nằm trong cả hai danh sách: hàng đã xuất kho rồi, muốn lấy lại phải làm

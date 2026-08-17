@@ -140,6 +140,64 @@ export function countSalesOrders(where: Prisma.SalesOrderWhereInput) {
   return prisma.salesOrder.count({ where });
 }
 
+// Chi tiết 1 đơn — join đủ để xem kỹ, chỉ 1 dòng nên không tiếc payload
+export function findSalesOrderDetail(id: string) {
+  return prisma.salesOrder.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      code: true,
+      status: true,
+      totalAmount: true,
+      createdAt: true,
+      updatedAt: true,
+      paidAt: true,
+      confirmedAt: true,
+      completedAt: true,
+      cancelledAt: true,
+      refundedAt: true,
+      cancelReason: true,
+      warehouseId: true,
+      customerId: true,
+      warehouse: { select: { id: true, code: true, name: true, address: true } },
+      customer: { select: { id: true, fullName: true, email: true, phone: true } },
+      // Đơn mua thẳng thì null; đơn từ phiếu thì trả kèm mã để frontend link ngược về phiếu
+      reservation: { select: { id: true, code: true } },
+      items: {
+        select: {
+          id: true,
+          skuId: true,
+          quantity: true,
+          unitPrice: true,
+          sku: {
+            select: {
+              skuCode: true,
+              barcode: true,
+              product: { select: { id: true, name: true, unit: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+// Dòng thời gian chuyển trạng thái của đơn — trả lời "ai bấm bước nào, lúc nào".
+// changedBy null nghĩa là hệ thống tự chuyển (chỗ webhook thanh toán sẽ rơi vào sau này).
+export function findSalesOrderTimeline(id: string) {
+  return prisma.documentStatusHistory.findMany({
+    where: { documentType: "SALES_ORDER", documentId: id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      fromStatus: true,
+      toStatus: true,
+      note: true,
+      createdAt: true,
+      changedBy: { select: { id: true, fullName: true } },
+    },
+  });
+}
+
 // Lấy đơn kèm item để trả về cho client sau khi đổi trạng thái
 export function findSalesOrderWithItems(tx: Prisma.TransactionClient, id: string) {
   return tx.salesOrder.findUnique({

@@ -42,6 +42,14 @@ router.get(
   asyncHandler(salesOrderController.listSalesOrders),
 );
 
+router.get(
+  "/:id",
+  authenticate,
+  authorize("CUSTOMER", "WAREHOUSE_STAFF", "WAREHOUSE_MANAGER", "ADMIN"),
+  validate(salesOrderIdParamSchema, "params"),
+  asyncHandler(salesOrderController.getSalesOrderById),
+);
+
 // STAFF không được huỷ — cùng lý do với reservation: nới quyền sau thì dễ, thu lại thì khó.
 // Khách chỉ huỷ được đơn còn PENDING, ranh giới đó service ép chứ route không biết.
 router.patch(

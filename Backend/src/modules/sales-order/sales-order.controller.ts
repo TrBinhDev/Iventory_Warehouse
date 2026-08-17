@@ -57,6 +57,13 @@ export async function listSalesOrders(req: Request, res: Response): Promise<void
   });
 }
 
+// Xử lý request xem chi tiết 1 đơn hàng
+export async function getSalesOrderById(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as SalesOrderIdParam;
+  const order = await salesOrderService.getSalesOrderById(req.user!, id);
+  sendSuccess(res, HttpStatus.OK, order);
+}
+
 // Xử lý request huỷ đơn — trả CANCELLED hoặc REFUNDED tuỳ đơn đã thu tiền chưa
 export async function cancelSalesOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as unknown as SalesOrderIdParam;
