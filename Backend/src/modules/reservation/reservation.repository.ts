@@ -90,8 +90,7 @@ export function findReservationById(id: string) {
 export function markReservationClosed(
   tx: Prisma.TransactionClient,
   id: string,
-  // Unchecked để gán thẳng cancelledByUserId — updateMany không nhận cú pháp connect quan hệ
-  data: Prisma.ReservationUncheckedUpdateManyInput,
+  data: Prisma.ReservationUpdateManyMutationInput,
 ) {
   return tx.reservation.updateMany({
     where: { id, status: "PENDING" },
@@ -169,7 +168,6 @@ export function findReservationDetail(id: string) {
       customerId: true,
       warehouse: { select: { id: true, code: true, name: true, address: true } },
       customer: { select: { id: true, fullName: true, email: true, phone: true } },
-      cancelledBy: { select: { id: true, fullName: true } },
       items: {
         select: {
           id: true,
@@ -189,12 +187,23 @@ export function findReservationDetail(id: string) {
   });
 }
 
+// Lấy người bấm huỷ từ nhật ký trạng thái — thay cho cột cancelledByUserId đã gỡ.
+// Lấy dòng mới nhất phòng trường hợp về sau có luồng huỷ rồi mở lại.
+export async function findCancelActor(id: string) {
+  const row = await prisma.documentStatusHistory.findFirst({
+    where: { documentType: "RESERVATION", documentId: id, toStatus: "CANCELLED" },
+    orderBy: { createdAt: "desc" },
+    select: { changedBy: { select: { id: true, fullName: true } } },
+  });
+
+  return row?.changedBy ?? null;
+}
+
 // Lấy phiếu kèm item để trả về cho client sau khi đổi trạng thái
 export function findReservationWithItems(tx: Prisma.TransactionClient, id: string) {
   return tx.reservation.findUnique({
     where: { id },
     include: {
-      cancelledBy: { select: { id: true, fullName: true } },
       items: {
         select: {
           id: true,

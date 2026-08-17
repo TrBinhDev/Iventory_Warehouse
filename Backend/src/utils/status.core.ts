@@ -24,7 +24,13 @@ interface StatusByDocument {
 export interface StatusChange<T extends DocumentType> {
   documentType: T;
   documentId: string;
-  // null khi chứng từ vừa được tạo, chưa có trạng thái trước đó
+  // LUẬT: KHÔNG ghi dòng nào lúc TẠO chứng từ. Bảng này là nhật ký CHUYỂN trạng thái, mà lúc
+  // tạo thì chưa chuyển gì cả — ai tạo và lúc nào đã nằm sẵn trên chính bảng chứng từ
+  // (customerId/createdByUserId + createdAt). Chép lại thành dòng null -> PENDING chỉ tạo ra
+  // 2 nguồn cho cùng một dữ kiện, và tốn thêm 1 INSERT ngay trong transaction đang giữ lock
+  // FOR UPDATE trên Inventory. Mọi module phải theo, đừng để module này ghi module kia không.
+  //
+  // Vẫn để nullable làm đường thoát cho dữ liệu nhập từ ngoài vào (không biết trạng thái trước).
   fromStatus: StatusByDocument[T] | null;
   toStatus: StatusByDocument[T];
   // null khi hệ thống tự chuyển (job hết hạn), không có người nào bấm

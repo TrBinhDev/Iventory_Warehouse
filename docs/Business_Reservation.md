@@ -17,19 +17,17 @@ model Reservation {
   warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
 
   customerId    String              @db.Uuid
-  customer      User                @relation("ReservationCustomer", fields: [customerId], references: [id])
+  customer      User                @relation(fields: [customerId], references: [id])
 
   status        ReservationStatus   @default(PENDING)
 
   expiresAt     DateTime
 
+  // Ai bấm huỷ nằm ở DocumentStatusHistory, không phải cột trên bảng này — xem note 11
   confirmedAt   DateTime?
   cancelledAt   DateTime?
   expiredAt     DateTime?
   cancelReason  String?
-
-  cancelledByUserId String?
-  cancelledBy       User?   @relation("ReservationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict)
 
   items         ReservationItem[]
 
@@ -40,7 +38,6 @@ model Reservation {
   @@index([expiresAt])
   @@index([warehouseId])
   @@index([customerId])
-  @@index([cancelledByUserId])
 }
 
 model ReservationItem {
@@ -68,9 +65,11 @@ model ReservationItem {
 ```text
 Warehouse   (1) ─────────────< Reservation (N)
 User        (1) ─────────────< Reservation (N)     // customer đặt trước
-User        (1) ─────────────< Reservation (N)     // cancelledBy — ai bấm huỷ, nullable
 Reservation (1) ─────────────< ReservationItem (N)
 SKU         (1) ─────────────< ReservationItem (N)
+
+Reservation (1) ····<  DocumentStatusHistory (N)   // KHÔNG phải FK, nối bằng
+                                                   // (documentType='RESERVATION', documentId)
 ```
 
 ## Note — các điểm quan trọng
@@ -109,13 +108,15 @@ COMMIT → nhả lock
 
 9. **`confirmedAt`/`cancelledAt`/`expiredAt`/`cancelReason`** — cần thiết vì `InventoryMovement` chỉ ghi log ở bước có chạm Inventory; các bước chuyển status không đụng Inventory (VD: `PENDING → CONFIRMED`) sẽ hoàn toàn mất dấu vết nếu thiếu field này. `expiredAt` tách riêng khỏi `cancelledAt` vì khác nguồn gốc: hệ thống tự động (BullMQ job/cron) vs người dùng chủ động hủy — quan trọng khi audit/debug.
 
-11. **`cancelledByUserId` — ai bấm huỷ.** Các mốc thời gian ở note 9 cho biết *lúc nào* huỷ nhưng không cho biết *ai*, trong khi phiếu có thể bị huỷ bởi 3 nguồn: chính khách, Manager của kho, hoặc Admin. Thông tin này có nằm ở `InventoryMovement.createdByUserId` của dòng `RELEASE`, nhưng ở đó nó bị lưu lặp theo từng SKU (phiếu 3 SKU → 3 dòng cùng một người) trong khi bản chất là dữ kiện cấp header — nên đưa lên `Reservation` mới đúng chỗ, không phải denormalize cho nhanh.
+11. **Ai bấm huỷ — nằm ở `DocumentStatusHistory`, không phải cột trên `Reservation`.** Các mốc thời gian ở note 9 cho biết *lúc nào* nhưng không cho biết *ai*, trong khi phiếu có thể bị huỷ bởi 3 nguồn: chính khách, Manager của kho, hoặc Admin. Thông tin này cũng nằm ở `InventoryMovement.createdByUserId` của dòng `RELEASE`, nhưng ở đó nó bị lặp theo từng SKU (phiếu 3 SKU → 3 dòng cùng một người) trong khi bản chất là dữ kiện cấp header.
 
-    Ghi trong **cùng lệnh `UPDATE`** với `status`/`cancelledAt` nên không bao giờ lệch nhau. **`NULL`** khi phiếu chưa huỷ, hoặc khi hệ thống tự cho hết hạn (không có người nào thao tác) — hết hạn thì phân biệt bằng `expiredAt`.
+    Từng có cột `cancelledByUserId` trên bảng này (migration `20260814150918`), **đã gỡ** ở migration `20260817030658` khi làm module `sales-order`. Lý do: 6 module nghiệp vụ mà mỗi bước có người bấm lại thêm một cột thì thành ~18 cột, mỗi cột là một chỗ có thể quên `countReferences` — đổi lấy 1 bảng dùng chung. Gỡ lúc bảng chưa có dữ liệu thật nên không tốn gì.
 
-    FK `onDelete: Restrict` như 37 quan hệ khác. Kèm theo, `user.repository.countReferences` đếm `Reservation` bằng `OR [customerId, cancelledByUserId]` — **không phải để chống 500**: người huỷ phiếu luôn sinh kèm 1 `InventoryMovement`, mà mục `movement` trong `countReferences` đã chặn được họ rồi. `OR` ở đây để thông báo 409 gọi đúng tên thứ đang vướng (*"1 phiếu giữ chỗ"*) thay vì chỉ báo chung chung là *"biến động tồn kho"*.
+    Cách ghi hiện tại: `recordStatusChange` (`utils/status.core.ts`) chèn 1 dòng `DocumentStatusHistory` **trong cùng transaction** với lệnh `UPDATE` đổi status, và đặt **sau** chốt `count === 0` nên phiếu bị người khác đóng trước thì không đẻ dòng thừa. Cả 3 đường đóng phiếu đều ghi: huỷ tay ghi `changedByUserId` = người bấm, job hết hạn ghi `null`.
 
-    Đây là giải pháp **tạm**: nếu sau này dựng bảng `DocumentStatusHistory` dùng chung cho các module nghiệp vụ (quyết ở module `sales-order`) thì cột này gỡ ra được, hoặc giữ song song như cách vẫn giữ `cancelledAt`.
+    Cách đọc: `GET /reservations/:id` chỉ tra bảng lịch sử khi phiếu `CANCELLED` **và** người xem không phải CUSTOMER — đường phổ biến nhất (khách xem phiếu đang `PENDING`) không tốn thêm câu truy vấn nào.
+
+    `user.repository.countReferences` **bắt buộc** đếm `documentStatusHistory` (FK `Restrict`). Khác với cột cũ — nơi mục `movement` đã vô tình phủ được vì huỷ phiếu luôn kèm 1 `InventoryMovement` — bảng này ghi cả những bước **không đụng kho** (VD `SalesOrder PENDING → PAID`), nên không có mục nào phủ hộ. Thiếu là xoá user rơi thẳng vào `P2003` → 500.
 
 10. **`code`** — mã phiếu dễ đọc dùng để hiển thị cho khách/nhân viên (VD `RES-20260814-000123`), tách biệt với `id` (UUID dùng nội bộ cho FK). `@unique` để DB chặn trùng nếu logic sinh code có bug.
 
@@ -167,7 +168,8 @@ Khác nhau giữa ba đường:
 
 | | Huỷ (API) | Hết hạn (job) |
 |---|---|---|
-| Status | `CANCELLED` + `cancelledAt` + `cancelledByUserId` | `EXPIRED` + `expiredAt`, hai field kia để `null` |
+| Status | `CANCELLED` + `cancelledAt` | `EXPIRED` + `expiredAt`, `cancelledAt` để `null` |
+| `DocumentStatusHistory` | 1 dòng `PENDING → CANCELLED`, `changedByUserId` = người bấm | 1 dòng `PENDING → EXPIRED`, `changedByUserId` = **`null`** |
 | `InventoryMovement.createdByUserId` | id người bấm | **`null`** — hệ thống tự làm |
 | Khi `updateMany` trả 0 dòng | **409** — người dùng cần biết vì sao không được | **Thoát êm** — job chạy nền, không ai đọc lỗi |
 

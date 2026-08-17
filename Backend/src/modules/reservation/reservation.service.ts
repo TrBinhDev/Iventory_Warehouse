@@ -12,6 +12,7 @@ import {
   applyInventoryDeltas,
   lockInventoryRows,
 } from "../../utils/inventory.core.js";
+import { recordStatusChange } from "../../utils/status.core.js";
 import { scheduleExpireJob } from "../../queues/reservation.queue.js";
 import * as reservationRepository from "./reservation.repository.js";
 import type {
@@ -262,8 +263,15 @@ export async function getReservationById(actor: Actor, id: string) {
 
   assertInScope(actor, reservation);
 
+  // Chỉ tra bảng lịch sử khi thật sự cần: phiếu đã huỷ VÀ người xem được phép thấy.
+  // Khách xem phiếu đang PENDING là đường phổ biến nhất, đường đó không tốn thêm câu nào.
+  const needsCancelActor = reservation.status === "CANCELLED" && actor.role !== "CUSTOMER";
+  const cancelledBy = needsCancelActor
+    ? await reservationRepository.findCancelActor(id)
+    : null;
+
   // warehouseId/customerId chỉ dùng để check phạm vi, đã có trong warehouse/customer nên bỏ khỏi response
-  const { warehouseId, customerId, cancelledBy, items, ...rest } = reservation;
+  const { warehouseId, customerId, items, ...rest } = reservation;
 
   return {
     ...rest,
@@ -310,7 +318,7 @@ export async function cancelReservation(
     );
   }
 
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     // Chốt CHỐNG RACE (bắt buộc, không được bỏ): đổi status là ĐIỀU KIỆN chứ không phải hệ quả.
     // 0 dòng nghĩa là job hết hạn hoặc một request huỷ khác đã xử lý xong trước. Không có chốt
     // này thì reserved bị trừ 2 lần, available phình ảo và bán vượt số hàng thật có.
@@ -318,9 +326,6 @@ export async function cancelReservation(
       status: "CANCELLED",
       cancelledAt: new Date(),
       cancelReason: input.cancelReason ?? null,
-      // Ghi cùng lệnh UPDATE với cancelledAt nên không bao giờ lệch nhau.
-      // Job hết hạn sẽ để null vì không có người nào bấm.
-      cancelledByUserId: actor.id,
     });
 
     if (closed.count === 0) {
@@ -330,10 +335,26 @@ export async function cancelReservation(
       );
     }
 
+    // Ai bấm huỷ ghi ở đây thay vì một cột trên Reservation. Đặt SAU chốt count === 0
+    // nên phiếu bị người khác đóng trước thì không đẻ dòng lịch sử thừa.
+    await recordStatusChange(tx, {
+      documentType: "RESERVATION",
+      documentId: id,
+      fromStatus: "PENDING",
+      toStatus: "CANCELLED",
+      changedByUserId: actor.id,
+    });
+
     await releaseReservedItems(tx, id, reservation.warehouseId, actor.id);
 
     return reservationRepository.findReservationWithItems(tx, id);
   });
+
+  // cancelledBy giờ nằm ở bảng lịch sử nên phải đọc thêm 1 câu, chỉ ở đường huỷ (hiếm)
+  // để response giữ nguyên hình dạng cũ
+  const cancelledBy = await reservationRepository.findCancelActor(id);
+
+  return { ...updated!, cancelledBy };
 }
 
 // Nhả toàn bộ reserved của phiếu và ghi audit — dùng chung cho huỷ tay lẫn job hết hạn.
@@ -373,10 +394,21 @@ export async function expireReservation(reservationId: string): Promise<boolean>
     const closed = await reservationRepository.markReservationClosed(tx, reservationId, {
       status: "EXPIRED",
       expiredAt: new Date(),
-      // cancelledAt/cancelledByUserId để nguyên null — hết hạn khác huỷ về nguồn gốc
+      // cancelledAt để nguyên null — hết hạn khác huỷ về nguồn gốc
     });
 
     if (closed.count === 0) return false;
+
+    // changedByUserId null: không có người nào bấm. Dòng này không mang thông tin mới so với
+    // expiredAt, nhưng thiếu nó thì nhật ký có lỗ và người đọc không biết là chưa ghi hay
+    // không xảy ra.
+    await recordStatusChange(tx, {
+      documentType: "RESERVATION",
+      documentId: reservationId,
+      fromStatus: "PENDING",
+      toStatus: "EXPIRED",
+      changedByUserId: null,
+    });
 
     await releaseReservedItems(tx, reservationId, reservation.warehouseId, null);
     return true;

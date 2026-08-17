@@ -202,6 +202,11 @@ export async function deleteUser(actor: Actor, id: string) {
       { resource: "transfer", label: "phiếu chuyển kho", count: counts.transfer },
       { resource: "inventoryAdjustment", label: "phiếu điều chỉnh", count: counts.adjustment },
       { resource: "inventoryMovement", label: "biến động tồn kho", count: counts.movement },
+      {
+        resource: "documentStatusHistory",
+        label: "lịch sử chuyển trạng thái chứng từ",
+        count: counts.statusHistory,
+      },
     ],
     Message.USER.IN_USE
   );

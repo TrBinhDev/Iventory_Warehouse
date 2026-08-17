@@ -76,26 +76,42 @@ export function updateUser(id: string, data: Prisma.UserUncheckedUpdateInput) {
 
 // Đếm mọi thứ còn tham chiếu tới tài khoản này — dùng để chặn xoá.
 // User xuất hiện ở 2 vai: khách đặt hàng (Reservation/SalesOrder) và nhân viên tạo phiếu
-// (Inbound/Outbound/Transfer/Adjustment), cộng thêm dấu vết trong audit log InventoryMovement.
+// (Inbound/Outbound/Transfer/Adjustment), cộng thêm dấu vết ở 2 bảng ghi lại: audit số lượng
+// (InventoryMovement) và nhật ký chuyển trạng thái (DocumentStatusHistory).
 export async function countReferences(userId: string) {
-  const [reservation, salesOrder, inbound, outbound, transfer, adjustment, movement] =
-    await Promise.all([
-      // OR vì User nối tới Reservation bằng 2 đường: người đặt và người bấm huỷ.
-      // Không phải để chống 500 — người huỷ luôn kèm 1 InventoryMovement nên mục movement
-      // dưới đây đã chặn được họ. OR ở đây là để 409 gọi đúng tên thứ đang vướng
-      // ("1 phiếu giữ chỗ") thay vì chỉ báo chung chung là "biến động tồn kho".
-      prisma.reservation.count({
-        where: { OR: [{ customerId: userId }, { cancelledByUserId: userId }] },
-      }),
-      prisma.salesOrder.count({ where: { customerId: userId } }),
-      prisma.inbound.count({ where: { createdByUserId: userId } }),
-      prisma.outbound.count({ where: { createdByUserId: userId } }),
-      prisma.transfer.count({ where: { createdByUserId: userId } }),
-      prisma.inventoryAdjustment.count({ where: { createdByUserId: userId } }),
-      prisma.inventoryMovement.count({ where: { createdByUserId: userId } }),
-    ]);
+  const [
+    reservation,
+    salesOrder,
+    inbound,
+    outbound,
+    transfer,
+    adjustment,
+    movement,
+    statusHistory,
+  ] = await Promise.all([
+    prisma.reservation.count({ where: { customerId: userId } }),
+    prisma.salesOrder.count({ where: { customerId: userId } }),
+    prisma.inbound.count({ where: { createdByUserId: userId } }),
+    prisma.outbound.count({ where: { createdByUserId: userId } }),
+    prisma.transfer.count({ where: { createdByUserId: userId } }),
+    prisma.inventoryAdjustment.count({ where: { createdByUserId: userId } }),
+    prisma.inventoryMovement.count({ where: { createdByUserId: userId } }),
+    // BẮT BUỘC phải đếm: FK ở đây là Restrict, và có những bước chuyển trạng thái KHÔNG đụng
+    // kho (SalesOrder PENDING→PAID chẳng hạn) nên mục movement ở trên không phủ hết được.
+    // Thiếu dòng này là xoá user rơi thẳng vào P2003 → 500.
+    prisma.documentStatusHistory.count({ where: { changedByUserId: userId } }),
+  ]);
 
-  return { reservation, salesOrder, inbound, outbound, transfer, adjustment, movement };
+  return {
+    reservation,
+    salesOrder,
+    inbound,
+    outbound,
+    transfer,
+    adjustment,
+    movement,
+    statusHistory,
+  };
 }
 
 // Xoá hẳn tài khoản — chỉ gọi khi đã chắc không còn gì tham chiếu
