@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { phoneSchema } from "../../utils/phone.util.js";
 
 // Payload tạo tài khoản Admin/Manager/Staff (Customer tự đăng ký qua /auth/register)
 export const createUserSchema = z
@@ -6,7 +7,7 @@ export const createUserSchema = z
     fullName: z.string().min(1, "Họ tên không được để trống").max(255),
     email: z.string().email("Email không hợp lệ"),
     password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
-    phone: z.string().max(20).optional(),
+    phone: phoneSchema.optional(),
     role: z.enum(["ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF"]),
     warehouseId: z.string().uuid("warehouseId không hợp lệ").optional(),
   })
@@ -43,7 +44,7 @@ export type UserIdParam = z.infer<typeof userIdParamSchema>;
 // Payload sửa tài khoản (partial update) — role/warehouseId chỉ Admin được gửi (check ở service layer)
 export const updateUserSchema = z.object({
   fullName: z.string().min(1, "Họ tên không được để trống").max(255).optional(),
-  phone: z.string().max(20).optional(),
+  phone: phoneSchema.optional(),
   avatarUrl: z.string().url("avatarUrl không hợp lệ").optional(),
   email: z.string().email("Email không hợp lệ").optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "BLOCKED"]).optional(),

@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { EMAIL_VERIFY_OTP_LENGTH } from "../../constants/token.js";
+import { phoneSchema } from "../../utils/phone.util.js";
 
 // Payload đăng ký tài khoản Customer
 export const registerSchema = z.object({
   email: z.string().email("Email không hợp lệ"),
   password: z.string().min(8, "Mật khẩu tối thiểu 8 ký tự"),
   fullName: z.string().min(1, "Họ tên không được để trống").max(255),
-  phone: z.string().max(20).optional(),
+  phone: phoneSchema.optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -67,7 +68,7 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export const updateMeSchema = z
   .object({
     fullName: z.string().min(1, "Họ tên không được để trống").max(255).optional(),
-    phone: z.string().max(20).nullable().optional(),
+    phone: phoneSchema.nullable().optional(),
     avatarUrl: z.string().url("avatarUrl không hợp lệ").nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
