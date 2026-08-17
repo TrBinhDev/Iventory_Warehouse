@@ -64,6 +64,15 @@ export async function getSalesOrderById(req: Request, res: Response): Promise<vo
   sendSuccess(res, HttpStatus.OK, order);
 }
 
+// Xử lý request xác nhận đã nhận tiền. Bắt buộc Idempotency-Key: hiện hơi thừa vì chốt
+// WHERE status='PENDING' đã chặn bấm 2 lần, nhưng đúng chỗ cần khi webhook cổng thanh toán
+// retry — và thêm sau khi frontend đã tích hợp thì là phá contract.
+export async function payOrder(req: Request, res: Response): Promise<void> {
+  const { id } = req.params as unknown as SalesOrderIdParam;
+  const order = await salesOrderService.payOrder(req.user!, id, requireIdempotencyKey(req));
+  sendSuccess(res, HttpStatus.OK, order);
+}
+
 // Xử lý request huỷ đơn — trả CANCELLED hoặc REFUNDED tuỳ đơn đã thu tiền chưa
 export async function cancelSalesOrder(req: Request, res: Response): Promise<void> {
   const { id } = req.params as unknown as SalesOrderIdParam;

@@ -425,6 +425,75 @@ export async function getSalesOrderById(actor: Actor, id: string) {
   };
 }
 
+// Ghi nhận đơn ĐÃ THU TIỀN. Tách khỏi payOrder và nhận changedByUserId kiểu string | null để
+// sau này webhook cổng thanh toán gọi thẳng được: lúc đó người gọi là máy, xác thực bằng chữ ký
+// chứ không phải JWT, và không có user nào để ghi vào lịch sử. Cùng khuôn expireReservation.
+export async function markOrderPaid(id: string, changedByUserId: string | null) {
+  return prisma.$transaction(async (tx) => {
+    // Chốt CHỐNG RACE: PAID chỉ đi ra từ PENDING. 0 dòng nghĩa là đơn đã bị huỷ hoặc đã được
+    // ghi nhận trả tiền trước đó — quan trọng vì webhook cổng thanh toán retry là chuyện thường.
+    const paid = await salesOrderRepository.updateSalesOrderStatus(tx, id, "PENDING", {
+      status: "PAID",
+      paidAt: new Date(),
+    });
+
+    if (paid.count === 0) {
+      throw new ConflictError(
+        Message.SALES_ORDER.INVALID_STATUS.message,
+        Message.SALES_ORDER.INVALID_STATUS.code,
+      );
+    }
+
+    await recordStatusChange(tx, {
+      documentType: "SALES_ORDER",
+      documentId: id,
+      fromStatus: "PENDING",
+      toStatus: "PAID",
+      changedByUserId,
+    });
+
+    return salesOrderRepository.findSalesOrderWithItems(tx, id);
+  });
+}
+
+// Manager/Admin xác nhận đã nhận được tiền của khách (mô hình chuyển khoản trước).
+// KHÔNG chạm Inventory: hàng đã nằm trong reserved từ lúc tạo đơn, tiền vào không đổi số lượng.
+export async function payOrder(actor: Actor, id: string, idempotencyKey: string) {
+  const order = await salesOrderRepository.findSalesOrderById(id);
+  if (!order) {
+    throw new NotFoundError(
+      Message.SALES_ORDER.NOT_FOUND.message,
+      Message.SALES_ORDER.NOT_FOUND.code,
+    );
+  }
+
+  assertInScope(actor, order);
+
+  // Chốt SỚM cho ca thường; chốt chống race thật nằm trong markOrderPaid
+  if (order.status !== "PENDING") {
+    throw new ConflictError(
+      Message.SALES_ORDER.INVALID_STATUS.message,
+      Message.SALES_ORDER.INVALID_STATUS.code,
+    );
+  }
+
+  // Claim đặt ngoài try, sau các chốt rẻ ở trên: không đốt key cho ca 404/409, nhưng vẫn không
+  // để catch xoá nhầm key của request đầu đang chạy.
+  const key = await claimIdempotencyKey(
+    actor.id,
+    idempotencyKey,
+    Message.SALES_ORDER.DUPLICATE_REQUEST,
+  );
+
+  try {
+    const updated = await markOrderPaid(id, actor.id);
+    return updated!;
+  } catch (err) {
+    await releaseIdempotencyKey(key);
+    throw err;
+  }
+}
+
 // Trạng thái nào huỷ được, tuỳ người bấm. Khách chỉ huỷ khi chưa có tiền vào; từ lúc đã thu
 // tiền thì phải có người của kho đứng tên — cùng lý lẽ với việc chốt pay là Manager.
 // COMPLETED không nằm trong cả hai danh sách: hàng đã xuất kho rồi, muốn lấy lại phải làm
@@ -464,7 +533,7 @@ export async function cancelSalesOrder(
     actor.role === "CUSTOMER" ? CANCELLABLE_BY_CUSTOMER : CANCELLABLE_BY_STAFF;
 
   // Chốt SỚM: báo lỗi cho ca thường mà không phải mở transaction. Bản ghi đã đọc sẵn ở trên nên
-  // miễn phí. KHÔNG phải chốt chống race — chốt đó nằm trong markSalesOrderClosed dưới đây.
+  // miễn phí. KHÔNG phải chốt chống race — chốt đó nằm trong updateSalesOrderStatus dưới đây.
   if (!allowed.includes(order.status)) {
     throw new ConflictError(
       Message.SALES_ORDER.INVALID_STATUS.message,
@@ -480,7 +549,7 @@ export async function cancelSalesOrder(
     // Chốt CHỐNG RACE (bắt buộc): khoá theo ĐÚNG trạng thái đã đọc, không phải theo danh sách.
     // Khoá theo danh sách thì đơn PENDING bị Manager khác chuyển sang PAID xen giữa vẫn khớp,
     // và ta sẽ ghi CANCELLED cho một đơn đã thu tiền. 0 dòng nghĩa là người khác xử lý trước.
-    const closed = await salesOrderRepository.markSalesOrderClosed(tx, id, order.status, {
+    const closed = await salesOrderRepository.updateSalesOrderStatus(tx, id, order.status, {
       status: targetStatus,
       cancelReason: input.cancelReason ?? null,
       // Chỉ set đúng một mốc thời gian khớp với trạng thái đích, không set cả hai —

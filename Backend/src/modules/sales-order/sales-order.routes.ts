@@ -50,6 +50,16 @@ router.get(
   asyncHandler(salesOrderController.getSalesOrderById),
 );
 
+// Chỉ Manager/Admin: đây là thao tác DUY NHẤT trong hệ thống đụng tiền, và không có đường lùi
+// (enum không có PAID -> PENDING), bấm nhầm là phải huỷ/hoàn — mà cả hai cũng đều Manager.
+router.patch(
+  "/:id/pay",
+  authenticate,
+  authorize("WAREHOUSE_MANAGER", "ADMIN"),
+  validate(salesOrderIdParamSchema, "params"),
+  asyncHandler(salesOrderController.payOrder),
+);
+
 // STAFF không được huỷ — cùng lý do với reservation: nới quyền sau thì dễ, thu lại thì khó.
 // Khách chỉ huỷ được đơn còn PENDING, ranh giới đó service ép chứ route không biết.
 router.patch(

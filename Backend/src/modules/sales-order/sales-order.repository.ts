@@ -85,11 +85,11 @@ export function findSalesOrderById(id: string) {
   });
 }
 
-// Đóng đơn (huỷ/hoàn tiền) — status vừa là điều kiện vừa là khoá.
+// Đổi trạng thái đơn — status vừa là điều kiện vừa là khoá, dùng chung cho pay/confirm/cancel.
 // fromStatus phải là trạng thái ĐÃ ĐỌC ở trên, không phải danh sách: có vậy mới chắc
 // trạng thái đích tính ra khớp với trạng thái thật lúc ghi (đơn PENDING bị người khác
 // chuyển sang PAID xen giữa thì câu này trả 0 dòng chứ không âm thầm ghi nhầm CANCELLED).
-export function markSalesOrderClosed(
+export function updateSalesOrderStatus(
   tx: Prisma.TransactionClient,
   id: string,
   fromStatus: Prisma.SalesOrderWhereInput["status"],
