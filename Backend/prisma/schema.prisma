@@ -311,6 +311,9 @@ model Reservation {
   @@index([expiresAt])
   @@index([warehouseId])
   @@index([customerId])
+  // Trigram cho GET /reservations?code= — filter đó dùng `contains` nên unique index (btree)
+  // của cột code KHÔNG dùng được. Bảng chứng từ sẽ là bảng lớn nhất hệ thống.
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model ReservationItem {
@@ -381,6 +384,9 @@ model SalesOrder {
   @@index([status])
   @@index([warehouseId])
   @@index([customerId])
+  // Không khai @@index([reservationId]) — unique index ở trên đã phục vụ tra cứu.
+  // Trigram cho GET /sales-orders?code= — cùng lý do với Reservation.code
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model SalesOrderItem {

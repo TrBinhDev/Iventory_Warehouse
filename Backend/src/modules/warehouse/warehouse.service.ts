@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
-import { normalizePhone } from "../../utils/phone.util.js";
+import { phoneSearchTerm } from "../../utils/phone.util.js";
 import { assertNoReferences } from "../../utils/reference.util.js";
 import * as warehouseRepository from "./warehouse.repository.js";
 import type {
@@ -29,8 +29,8 @@ export async function listWarehouses(query: ListWarehousesQuery) {
 
   if (query.search) {
     // Nhánh sđt so bằng chuỗi ĐÃ CHUẨN HOÁ, không so nguyên văn: dưới DB số luôn ở dạng
-    // 0xxxxxxxxx (xem phone.util.ts). Gõ chữ thì normalizePhone trả rỗng -> bỏ nhánh đó đi.
-    const phoneQuery = normalizePhone(query.search);
+    // 0xxxxxxxxx (xem phone.util.ts). Ít hơn 3 chữ số thì phoneSearchTerm trả null -> bỏ nhánh đó đi.
+    const phoneQuery = phoneSearchTerm(query.search);
 
     where.OR = [
       { name: { contains: query.search, mode: "insensitive" } },

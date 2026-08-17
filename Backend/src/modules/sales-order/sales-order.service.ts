@@ -8,7 +8,7 @@ import {
   releaseIdempotencyKey,
 } from "../../utils/idempotency.util.js";
 import { applyInventoryDeltas, lockInventoryRows } from "../../utils/inventory.core.js";
-import { normalizePhone } from "../../utils/phone.util.js";
+import { phoneSearchTerm } from "../../utils/phone.util.js";
 import { recordStatusChange } from "../../utils/status.core.js";
 import * as salesOrderRepository from "./sales-order.repository.js";
 import type {
@@ -335,8 +335,8 @@ export async function listSalesOrders(actor: Actor, query: ListSalesOrdersQuery)
     if (query.customer) {
       // Nhánh sđt so bằng chuỗi ĐÃ CHUẨN HOÁ, không so nguyên văn: dưới DB số luôn ở dạng
       // 0xxxxxxxxx (xem phone.util.ts), nên gõ "090 123 4567" hay "+84901234567" phải quy về
-      // cùng dạng mới khớp. Gõ chữ thì normalizePhone trả rỗng -> bỏ hẳn nhánh này đi.
-      const phoneQuery = normalizePhone(query.customer);
+      // cùng dạng mới khớp. Chuỗi có ít hơn 3 chữ số thì phoneSearchTerm trả null -> bỏ hẳn nhánh này đi.
+      const phoneQuery = phoneSearchTerm(query.customer);
 
       where.customer = {
         OR: [

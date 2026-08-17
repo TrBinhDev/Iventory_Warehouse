@@ -30,6 +30,8 @@ export const listUsersQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   role: z.enum(["ADMIN", "WAREHOUSE_MANAGER", "WAREHOUSE_STAFF", "CUSTOMER"]).optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "BLOCKED"]).optional(),
+  // MỘT ô tìm cho 3 cột: fullName, email, phone
+  search: z.string().trim().min(1).max(255).optional(),
 });
 
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;

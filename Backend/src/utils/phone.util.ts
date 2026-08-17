@@ -19,6 +19,21 @@ export function normalizePhone(raw: string): string {
   return digits;
 }
 
+// Số chữ số tối thiểu để coi chuỗi người dùng gõ là "đang tra số điện thoại".
+// 3 vì "090" (đầu số) là ca tra thật ngắn nhất, còn 4 số cuối là ca phổ biến nhất.
+const MIN_PHONE_SEARCH_DIGITS = 3;
+
+// Chuyển chuỗi tìm kiếm thành mảnh số điện thoại để so, hoặc null nếu không phải đang tra số.
+//
+// ĐÂY LÀ LÝ DO HÀM NÀY TỒN TẠI, đừng gọi thẳng normalizePhone cho việc tìm kiếm: gõ chữ mà
+// trong đó lẫn một chữ số (email "s3s-staff", tên "Kho 1") thì normalizePhone trả về đúng
+// chữ số đó, và `phone contains "3"` khớp MỌI số có chữ số 3 — kết quả tìm đầy bản ghi không
+// liên quan. Đã dính thật ở cả 5 endpoint tìm kiếm trước khi tách hàm này ra.
+export function phoneSearchTerm(raw: string): string | null {
+  const digits = normalizePhone(raw);
+  return digits.length >= MIN_PHONE_SEARCH_DIGITS ? digits : null;
+}
+
 // Schema dùng chung cho mọi field số điện thoại. max(20) đặt TRƯỚC transform nên chặn theo độ
 // dài người dùng gõ; refine đặt SAU nên chuỗi rác ("khong phai so") lọc hết chữ số thành rỗng
 // và bị bắt ở đây thay vì lọt xuống DB.

@@ -12,6 +12,7 @@ import {
   applyInventoryDeltas,
   lockInventoryRows,
 } from "../../utils/inventory.core.js";
+import { phoneSearchTerm } from "../../utils/phone.util.js";
 import { recordStatusChange } from "../../utils/status.core.js";
 import { scheduleExpireJob } from "../../queues/reservation.queue.js";
 import * as reservationRepository from "./reservation.repository.js";
@@ -221,6 +222,25 @@ export async function listReservations(actor: Actor, query: ListReservationsQuer
     // Manager/Staff không gắn kho thì không thấy gì (fail closed), không phải thấy tất cả
     if (!actor.warehouseId) return { items: [], total: 0 };
     where.warehouseId = actor.warehouseId;
+  }
+
+  // Chỉ nhân viên mới tra được theo khách. Khách gửi lên cũng không lách được vì where.customerId
+  // đã bị ép ở nhánh trên rồi.
+  if (actor.role !== "CUSTOMER") {
+    if (query.customerId) where.customerId = query.customerId;
+
+    if (query.customer) {
+      // Nhánh sđt so bằng chuỗi ĐÃ CHUẨN HOÁ (xem phone.util.ts); ít hơn 3 chữ số thì trả null -> bỏ nhánh
+      const phoneQuery = phoneSearchTerm(query.customer);
+
+      where.customer = {
+        OR: [
+          { fullName: { contains: query.customer, mode: "insensitive" } },
+          { email: { contains: query.customer, mode: "insensitive" } },
+          ...(phoneQuery ? [{ phone: { contains: phoneQuery } }] : []),
+        ],
+      };
+    }
   }
 
   if (query.status) where.status = query.status;

@@ -7,6 +7,7 @@ import {
   NotFoundError,
 } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
+import { phoneSearchTerm } from "../../utils/phone.util.js";
 import { deleteFilesByUrls } from "../../utils/storage.util.js";
 import { assertNoReferences } from "../../utils/reference.util.js";
 import { destroySession } from "../../utils/session.util.js";
@@ -63,6 +64,21 @@ export async function listUsers(actor: Actor, query: ListUsersQuery) {
 
   if (query.status) {
     where.status = query.status;
+  }
+
+  if (query.search) {
+    // Nhánh sđt so bằng chuỗi ĐÃ CHUẨN HOÁ (xem phone.util.ts); ít hơn 3 chữ số thì phoneSearchTerm
+    // trả null -> bỏ hẳn nhánh đó đi.
+    //
+    // Đặt vào where.OR nên nó CỘNG DỒN với 2 điều kiện ép ở trên, không thay thế: Manager gõ
+    // email của Admin vẫn ra rỗng vì where.role/where.warehouseId vẫn còn nguyên.
+    const phoneQuery = phoneSearchTerm(query.search);
+
+    where.OR = [
+      { fullName: { contains: query.search, mode: "insensitive" } },
+      { email: { contains: query.search, mode: "insensitive" } },
+      ...(phoneQuery ? [{ phone: { contains: phoneQuery } }] : []),
+    ];
   }
 
   const skip = (query.page - 1) * query.limit;

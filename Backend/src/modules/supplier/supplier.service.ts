@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError } from "../../errors/appError.js";
 import { Message } from "../../constants/message.js";
-import { normalizePhone } from "../../utils/phone.util.js";
+import { phoneSearchTerm } from "../../utils/phone.util.js";
 import { assertNoReferences } from "../../utils/reference.util.js";
 import * as supplierRepository from "./supplier.repository.js";
 import type {
@@ -30,8 +30,8 @@ export async function listSuppliers(query: ListSuppliersQuery) {
   if (query.search) {
     // Nhánh sđt so bằng chuỗi ĐÃ CHUẨN HOÁ, không so nguyên văn: dưới DB số luôn ở dạng
     // 0xxxxxxxxx (xem phone.util.ts), nên gõ "090 123 4567" hay "+84901234567" phải quy về
-    // cùng dạng mới khớp. Gõ chữ thì normalizePhone trả rỗng -> bỏ hẳn nhánh này đi.
-    const phoneQuery = normalizePhone(query.search);
+    // cùng dạng mới khớp. Chuỗi có ít hơn 3 chữ số thì phoneSearchTerm trả null -> bỏ hẳn nhánh này đi.
+    const phoneQuery = phoneSearchTerm(query.search);
 
     where.OR = [
       { name: { contains: query.search, mode: "insensitive" } },

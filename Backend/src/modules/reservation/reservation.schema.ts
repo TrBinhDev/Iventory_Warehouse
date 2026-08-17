@@ -41,6 +41,10 @@ export const listReservationsQuerySchema = z.object({
   code: z.string().trim().min(1).max(30).optional(),
   warehouseId: z.uuid("warehouseId phải là UUID hợp lệ").optional(),
   skuId: z.uuid("skuId phải là UUID hợp lệ").optional(),
+  // Hai cách tìm theo khách: gõ tên/email/số điện thoại vào một ô, hoặc lọc chính xác khi bấm
+  // từ trang khách hàng. Cả hai bị bỏ qua với role CUSTOMER — họ vốn chỉ thấy phiếu của mình.
+  customer: z.string().trim().min(1).max(255).optional(),
+  customerId: z.uuid("customerId phải là UUID hợp lệ").optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
 });
