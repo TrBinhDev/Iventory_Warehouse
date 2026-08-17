@@ -1,0 +1,33 @@
+import { Router } from "express";
+import { authenticate } from "../../middlewares/authenticate.js";
+import { authorize } from "../../middlewares/authorize.js";
+import { validate } from "../../middlewares/validate.js";
+import { asyncHandler } from "../../utils/asyncHandler.js";
+import {
+  createFromReservationSchema,
+  createSalesOrderSchema,
+} from "./sales-order.schema.js";
+import * as salesOrderController from "./sales-order.controller.js";
+
+const router = Router();
+
+// Chỉ CUSTOMER — nhân viên không đặt hộ, customerId lấy từ token
+router.post(
+  "/",
+  authenticate,
+  authorize("CUSTOMER"),
+  validate(createSalesOrderSchema, "body"),
+  asyncHandler(salesOrderController.createSalesOrder),
+);
+
+// Đường thứ hai để tạo đơn, tách hẳn khỏi route trên thay vì rẽ nhánh trong 1 body:
+// gộp thì client gửi được body vừa có reservationId vừa có items và server phải đoán ý.
+router.post(
+  "/from-reservation",
+  authenticate,
+  authorize("CUSTOMER"),
+  validate(createFromReservationSchema, "body"),
+  asyncHandler(salesOrderController.createSalesOrderFromReservation),
+);
+
+export { router as salesOrderRouter };
