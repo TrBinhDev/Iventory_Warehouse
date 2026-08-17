@@ -337,7 +337,10 @@ model SalesOrder {
   customerId String @db.Uuid
   customer   User   @relation(fields: [customerId], references: [id])
 
-  reservationId String?      @db.Uuid
+  // 1 phiếu giữ chỗ chỉ đẻ ra được 1 đơn. Postgres cho nhiều NULL trong unique index nên
+  // đơn mua thẳng (không qua phiếu) không vướng. Không bịt được race nào — câu UPDATE ở
+  // luồng B đã tự khoá dòng phiếu — mà để chặn code viết sai sau này quên mất luật.
+  reservationId String?      @unique @db.Uuid
   reservation   Reservation? @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
   status      SalesOrderStatus @default(PENDING)
@@ -360,7 +363,6 @@ model SalesOrder {
   @@index([status])
   @@index([warehouseId])
   @@index([customerId])
-  @@index([reservationId])
 }
 
 model SalesOrderItem {

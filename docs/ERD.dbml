@@ -176,7 +176,7 @@ Table SalesOrder {
   warehouse Warehouse [not null]
   customerId String [not null]
   customer User [not null]
-  reservationId String
+  reservationId String [unique]
   reservation Reservation
   status SalesOrderStatus [not null, default: 'PENDING']
   totalAmount Decimal [not null]

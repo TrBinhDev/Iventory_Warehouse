@@ -193,4 +193,58 @@ export const Message = {
       message: "Cần nhập lý do khi huỷ phiếu giữ chỗ của khách",
     },
   },
+
+  // Mã dùng lại nguyên văn của RESERVATION khi ý nghĩa y hệt (OUT_OF_STOCK, SKU_NOT_FOUND...)
+  // để frontend map một lần dùng chung; chỉ đổi message cho đúng ngữ cảnh đơn hàng.
+  SALES_ORDER: {
+    NOT_FOUND: { code: "SALES_ORDER_NOT_FOUND", message: "Không tìm thấy đơn hàng" },
+    OUT_OF_STOCK: {
+      code: "OUT_OF_STOCK",
+      message: "Một số sản phẩm không còn đủ hàng để đặt mua",
+    },
+    INVENTORY_NOT_FOUND: {
+      code: "INVENTORY_NOT_FOUND",
+      message: "Kho này chưa khai báo tồn cho một số SKU trong đơn",
+    },
+    WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+    SKU_INACTIVE: {
+      code: "SKU_INACTIVE",
+      message: "Sản phẩm đã ngừng kinh doanh, không thể đặt mua",
+    },
+    MISSING_IDEMPOTENCY_KEY: {
+      code: "MISSING_IDEMPOTENCY_KEY",
+      message: "Thiếu header Idempotency-Key",
+    },
+    DUPLICATE_REQUEST: {
+      code: "DUPLICATE_REQUEST",
+      message: "Yêu cầu này đã được xử lý, vui lòng xem lại danh sách đơn hàng",
+    },
+    INVALID_STATUS: {
+      code: "SALES_ORDER_INVALID_STATUS",
+      message: "Đơn hàng không ở trạng thái cho phép thao tác này",
+    },
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Chỉ được thao tác trên kho mình quản lý",
+    },
+    CANCEL_REASON_REQUIRED: {
+      code: "CANCEL_REASON_REQUIRED",
+      message: "Cần nhập lý do khi huỷ đơn hàng của khách",
+    },
+
+    // Luồng B — đặt mua từ phiếu giữ chỗ có sẵn
+    RESERVATION_NOT_FOUND: {
+      code: "RESERVATION_NOT_FOUND",
+      message: "Không tìm thấy phiếu giữ chỗ",
+    },
+    RESERVATION_INVALID_STATUS: {
+      code: "RESERVATION_INVALID_STATUS",
+      message: "Phiếu giữ chỗ đã hết hạn hoặc đã bị huỷ, không thể đặt mua",
+    },
+    RESERVATION_ALREADY_CONVERTED: {
+      code: "RESERVATION_ALREADY_CONVERTED",
+      message: "Phiếu giữ chỗ này đã được chuyển thành đơn hàng",
+    },
+  },
 } as const;
