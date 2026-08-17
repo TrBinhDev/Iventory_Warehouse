@@ -3,8 +3,8 @@ generator client {
 }
 
 generator dbml {
-  provider = "prisma-dbml-generator"
-  output   = "../../docs"
+  provider   = "prisma-dbml-generator"
+  output     = "../../docs"
   outputName = "ERD.dbml"
 }
 
@@ -30,37 +30,38 @@ enum UserStatus {
 }
 
 model User {
-  id                String                     @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  role              UserRole
+  role UserRole
 
-  warehouseId       String?                    @db.Uuid
+  warehouseId String?    @db.Uuid
   // Restrict thay vì mặc định SetNull: xoá kho không được phép biến Manager/Staff
   // thành tài khoản không thuộc kho nào (trạng thái module user cấm)
-  warehouse         Warehouse?                 @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  warehouse   Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
 
-  fullName          String                     @db.VarChar(255)
-  email             String                     @unique @db.VarChar(255)
-  passwordHash      String
-  isEmailVerified   Boolean                    @default(false)
-  phone             String?                    @db.VarChar(20)
-  avatarUrl         String?
-  status            UserStatus                 @default(ACTIVE)
-  lastLoginAt       DateTime?
+  fullName        String     @db.VarChar(255)
+  email           String     @unique @db.VarChar(255)
+  passwordHash    String
+  isEmailVerified Boolean    @default(false)
+  phone           String?    @db.VarChar(20)
+  avatarUrl       String?
+  status          UserStatus @default(ACTIVE)
+  lastLoginAt     DateTime?
 
-  reservations           Reservation[]         @relation("ReservationCustomer")
+  reservations          Reservation[]           @relation("ReservationCustomer")
   // Phiếu do chính người này bấm huỷ — khác hẳn reservations (phiếu do họ đặt).
   // Cần đặt tên quan hệ vì User nối tới Reservation bằng 2 đường khác nhau.
-  cancelledReservations  Reservation[]         @relation("ReservationCancelledBy")
-  salesOrders             SalesOrder[]
-  createdInbounds          Inbound[]
-  createdOutbounds         Outbound[]
-  createdTransfers         Transfer[]
-  createdAdjustments       InventoryAdjustment[]
-  inventoryMovements       InventoryMovement[]
+  cancelledReservations Reservation[]           @relation("ReservationCancelledBy")
+  salesOrders           SalesOrder[]
+  createdInbounds       Inbound[]
+  createdOutbounds      Outbound[]
+  createdTransfers      Transfer[]
+  createdAdjustments    InventoryAdjustment[]
+  inventoryMovements    InventoryMovement[]
+  statusChanges         DocumentStatusHistory[]
 
-  createdAt         DateTime                   @default(now())
-  updatedAt         DateTime                   @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([role])
   @@index([status])
@@ -77,15 +78,15 @@ enum CategoryStatus {
 }
 
 model Category {
-  id          String          @id @default(uuid()) @db.Uuid
-  code        String          @unique @db.VarChar(50)
-  name        String          @db.VarChar(255)
-  status      CategoryStatus  @default(ACTIVE)
+  id     String         @id @default(uuid()) @db.Uuid
+  code   String         @unique @db.VarChar(50)
+  name   String         @db.VarChar(255)
+  status CategoryStatus @default(ACTIVE)
 
-  products    ProductCategory[]
+  products ProductCategory[]
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
 }
@@ -96,26 +97,26 @@ enum WarehouseStatus {
 }
 
 model Warehouse {
-  id                String          @id @default(uuid()) @db.Uuid
-  code              String          @unique @db.VarChar(50)
-  name              String          @db.VarChar(255)
-  address           String?
-  phone             String?         @db.VarChar(20)
-  status            WarehouseStatus @default(ACTIVE)
+  id      String          @id @default(uuid()) @db.Uuid
+  code    String          @unique @db.VarChar(50)
+  name    String          @db.VarChar(255)
+  address String?
+  phone   String?         @db.VarChar(20)
+  status  WarehouseStatus @default(ACTIVE)
 
-  users             User[]
-  inventories       Inventory[]
-  reservations      Reservation[]
-  salesOrders       SalesOrder[]
-  inbounds          Inbound[]
-  outbounds         Outbound[]
-  adjustments       InventoryAdjustment[]
+  users        User[]
+  inventories  Inventory[]
+  reservations Reservation[]
+  salesOrders  SalesOrder[]
+  inbounds     Inbound[]
+  outbounds    Outbound[]
+  adjustments  InventoryAdjustment[]
 
-  transfersFrom     Transfer[]      @relation("TransferFrom")
-  transfersTo       Transfer[]      @relation("TransferTo")
+  transfersFrom Transfer[] @relation("TransferFrom")
+  transfersTo   Transfer[] @relation("TransferTo")
 
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
 }
@@ -126,21 +127,21 @@ enum SupplierStatus {
 }
 
 model Supplier {
-  id          String          @id @default(uuid()) @db.Uuid
-  code        String          @unique @db.VarChar(50)
-  name        String          @db.VarChar(255)
-  contactName String?         @db.VarChar(255)
-  phone       String?         @db.VarChar(20)
-  email       String?         @db.VarChar(255)
+  id          String         @id @default(uuid()) @db.Uuid
+  code        String         @unique @db.VarChar(50)
+  name        String         @db.VarChar(255)
+  contactName String?        @db.VarChar(255)
+  phone       String?        @db.VarChar(20)
+  email       String?        @db.VarChar(255)
   address     String?
-  taxCode     String?         @db.VarChar(50)
-  status      SupplierStatus  @default(ACTIVE)
+  taxCode     String?        @db.VarChar(50)
+  status      SupplierStatus @default(ACTIVE)
 
-  inbounds    Inbound[]
-  outbounds   Outbound[]
+  inbounds  Inbound[]
+  outbounds Outbound[]
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
 }
@@ -151,20 +152,20 @@ enum ProductStatus {
 }
 
 model Product {
-  id          String          @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  code        String          @unique @db.VarChar(50)
-  name        String          @db.VarChar(255)
+  code        String        @unique @db.VarChar(50)
+  name        String        @db.VarChar(255)
   description String?
-  unit        String          @db.VarChar(20)
+  unit        String        @db.VarChar(20)
   images      String[]
-  status      ProductStatus   @default(ACTIVE)
+  status      ProductStatus @default(ACTIVE)
 
-  categories  ProductCategory[]
-  skus        SKU[]
+  categories ProductCategory[]
+  skus       SKU[]
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   // Index trigram cho tìm kiếm ILIKE '%...%' (GET /products?search=, GET /inventories?search=).
@@ -175,18 +176,18 @@ model Product {
 }
 
 model ProductCategory {
-  productId   String    @db.Uuid
+  productId String  @db.Uuid
   // CASCADE duy nhất còn lại trong schema, và là có chủ ý: dòng gán thuộc về chính sản phẩm,
   // xoá sản phẩm thì gán mất theo. DELETE /products/:id dựa vào đây để dọn (không tự đếm).
-  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  categoryId  String    @db.Uuid
+  categoryId String   @db.Uuid
   // Restrict (không phải Cascade): xoá loại sản phẩm là đụng dữ liệu của bản ghi KHÁC —
   // để Cascade thì xoá 1 loại sẽ âm thầm gỡ phân loại của hàng chục sản phẩm mà không ai báo.
   // DELETE /categories/:id đã chặn ở service, đây là lớp đỡ phía dưới.
-  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@id([productId, categoryId])
   @@index([categoryId])
@@ -198,29 +199,29 @@ enum SKUStatus {
 }
 
 model SKU {
-  id          String          @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  productId   String          @db.Uuid
-  product     Product         @relation(fields: [productId], references: [id])
+  productId String  @db.Uuid
+  product   Product @relation(fields: [productId], references: [id])
 
-  skuCode     String          @unique @db.VarChar(50)
-  barcode     String?         @unique @db.VarChar(50)
-  attributes  Json?
-  price       Decimal         @db.Decimal(15, 2)
-  cost        Decimal?        @db.Decimal(15, 2)
-  weight      Decimal?        @db.Decimal(10, 3)
-  status      SKUStatus       @default(ACTIVE)
+  skuCode    String    @unique @db.VarChar(50)
+  barcode    String?   @unique @db.VarChar(50)
+  attributes Json?
+  price      Decimal   @db.Decimal(15, 2)
+  cost       Decimal?  @db.Decimal(15, 2)
+  weight     Decimal?  @db.Decimal(10, 3)
+  status     SKUStatus @default(ACTIVE)
 
-  inventories       Inventory[]
-  reservationItems  ReservationItem[]
-  salesOrderItems   SalesOrderItem[]
-  inboundItems      InboundItem[]
-  outboundItems     OutboundItem[]
-  transferItems     TransferItem[]
-  adjustmentItems   InventoryAdjustmentItem[]
+  inventories      Inventory[]
+  reservationItems ReservationItem[]
+  salesOrderItems  SalesOrderItem[]
+  inboundItems     InboundItem[]
+  outboundItems    OutboundItem[]
+  transferItems    TransferItem[]
+  adjustmentItems  InventoryAdjustmentItem[]
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([productId])
   @@index([status])
@@ -233,22 +234,22 @@ model SKU {
 // ============================================================
 
 model Inventory {
-  id                String              @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  warehouseId       String              @db.Uuid
-  warehouse         Warehouse           @relation(fields: [warehouseId], references: [id])
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  skuId             String              @db.Uuid
-  sku               SKU                 @relation(fields: [skuId], references: [id])
+  skuId String @db.Uuid
+  sku   SKU    @relation(fields: [skuId], references: [id])
 
-  quantityOnHand    Int                 @default(0)
-  quantityReserved  Int                 @default(0)
-  version           Int                 @default(0)
+  quantityOnHand   Int @default(0)
+  quantityReserved Int @default(0)
+  version          Int @default(0)
 
-  movements         InventoryMovement[]
+  movements InventoryMovement[]
 
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([warehouseId, skuId])
   @@index([skuId])
@@ -266,35 +267,35 @@ enum ReservationStatus {
 }
 
 model Reservation {
-  id            String              @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  code          String              @unique @db.VarChar(30)
+  code String @unique @db.VarChar(30)
 
-  warehouseId   String              @db.Uuid
-  warehouse     Warehouse           @relation(fields: [warehouseId], references: [id])
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  customerId    String              @db.Uuid
-  customer      User                @relation("ReservationCustomer", fields: [customerId], references: [id])
+  customerId String @db.Uuid
+  customer   User   @relation("ReservationCustomer", fields: [customerId], references: [id])
 
-  status        ReservationStatus   @default(PENDING)
-  expiresAt     DateTime
+  status    ReservationStatus @default(PENDING)
+  expiresAt DateTime
 
-  confirmedAt   DateTime?
-  cancelledAt   DateTime?
-  expiredAt     DateTime?
-  cancelReason  String?
+  confirmedAt  DateTime?
+  cancelledAt  DateTime?
+  expiredAt    DateTime?
+  cancelReason String?
 
   // Ai bấm huỷ: khách tự huỷ, Manager kho đó, hoặc Admin. NULL khi phiếu chưa huỷ,
   // hoặc khi hệ thống tự cho hết hạn (không có người nào thao tác).
   // Restrict để xoá user không xoá mất dấu người đã huỷ phiếu.
-  cancelledByUserId String?          @db.Uuid
-  cancelledBy       User?            @relation("ReservationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict)
+  cancelledByUserId String? @db.Uuid
+  cancelledBy       User?   @relation("ReservationCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: Restrict)
 
-  items         ReservationItem[]
-  salesOrders   SalesOrder[]
+  items       ReservationItem[]
+  salesOrders SalesOrder[]
 
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([expiresAt])
@@ -304,18 +305,18 @@ model Reservation {
 }
 
 model ReservationItem {
-  id              String        @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  reservationId   String        @db.Uuid
-  reservation     Reservation   @relation(fields: [reservationId], references: [id])
+  reservationId String      @db.Uuid
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
 
-  skuId           String        @db.Uuid
-  sku             SKU           @relation(fields: [skuId], references: [id])
+  skuId String @db.Uuid
+  sku   SKU    @relation(fields: [skuId], references: [id])
 
-  quantity        Int
-  unitPrice       Decimal       @db.Decimal(15, 2)
+  quantity  Int
+  unitPrice Decimal @db.Decimal(15, 2)
 
-  createdAt       DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([reservationId])
   @@index([skuId])
@@ -335,35 +336,35 @@ enum SalesOrderStatus {
 }
 
 model SalesOrder {
-  id              String              @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  code            String              @unique @db.VarChar(30)
+  code String @unique @db.VarChar(30)
 
-  warehouseId     String              @db.Uuid
-  warehouse       Warehouse           @relation(fields: [warehouseId], references: [id])
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  customerId      String              @db.Uuid
-  customer        User                @relation(fields: [customerId], references: [id])
+  customerId String @db.Uuid
+  customer   User   @relation(fields: [customerId], references: [id])
 
-  reservationId   String?             @db.Uuid
-  reservation     Reservation?        @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  reservationId String?      @db.Uuid
+  reservation   Reservation? @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
-  status          SalesOrderStatus    @default(PENDING)
-  totalAmount     Decimal             @db.Decimal(15, 2)
+  status      SalesOrderStatus @default(PENDING)
+  totalAmount Decimal          @db.Decimal(15, 2)
 
-  paidAt          DateTime?
-  confirmedAt     DateTime?
-  completedAt     DateTime?
-  cancelledAt     DateTime?
-  refundedAt      DateTime?
-  cancelReason    String?
+  paidAt       DateTime?
+  confirmedAt  DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+  refundedAt   DateTime?
+  cancelReason String?
 
-  items           SalesOrderItem[]
-  outbounds       Outbound[]
-  inbounds        Inbound[]
+  items     SalesOrderItem[]
+  outbounds Outbound[]
+  inbounds  Inbound[]
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([warehouseId])
@@ -372,18 +373,18 @@ model SalesOrder {
 }
 
 model SalesOrderItem {
-  id            String        @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  salesOrderId  String        @db.Uuid
-  salesOrder    SalesOrder    @relation(fields: [salesOrderId], references: [id])
+  salesOrderId String     @db.Uuid
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id])
 
-  skuId         String        @db.Uuid
-  sku           SKU           @relation(fields: [skuId], references: [id])
+  skuId String @db.Uuid
+  sku   SKU    @relation(fields: [skuId], references: [id])
 
-  quantity      Int
-  unitPrice     Decimal       @db.Decimal(15, 2)
+  quantity  Int
+  unitPrice Decimal @db.Decimal(15, 2)
 
-  createdAt     DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([salesOrderId])
   @@index([skuId])
@@ -406,35 +407,35 @@ enum InboundReason {
 }
 
 model Inbound {
-  id              String          @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  code            String          @unique @db.VarChar(30)
+  code String @unique @db.VarChar(30)
 
-  warehouseId     String          @db.Uuid
-  warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  reason          InboundReason   @default(FROM_SUPPLIER)
+  reason InboundReason @default(FROM_SUPPLIER)
 
-  supplierId      String?         @db.Uuid
+  supplierId String?   @db.Uuid
   // Restrict: xoá nhà cung cấp không được xoá luôn nguồn gốc của phiếu nhập đã lưu
-  supplier        Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
-  salesOrderId    String?         @db.Uuid
-  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
+  salesOrderId String?     @db.Uuid
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
 
-  createdByUserId String          @db.Uuid
-  createdBy       User            @relation(fields: [createdByUserId], references: [id])
+  createdByUserId String @db.Uuid
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
 
-  status          InboundStatus   @default(DRAFT)
-  confirmedAt     DateTime?
-  receivedAt      DateTime?
-  cancelledAt     DateTime?
-  cancelReason    String?
+  status       InboundStatus @default(DRAFT)
+  confirmedAt  DateTime?
+  receivedAt   DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?
 
-  items           InboundItem[]
+  items InboundItem[]
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([warehouseId])
@@ -443,20 +444,20 @@ model Inbound {
 }
 
 model InboundItem {
-  id            String        @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  inboundId     String        @db.Uuid
-  inbound       Inbound       @relation(fields: [inboundId], references: [id])
+  inboundId String  @db.Uuid
+  inbound   Inbound @relation(fields: [inboundId], references: [id])
 
-  skuId         String        @db.Uuid
-  sku           SKU           @relation(fields: [skuId], references: [id])
+  skuId String @db.Uuid
+  sku   SKU    @relation(fields: [skuId], references: [id])
 
-  quantityOrdered   Int
-  quantityReceived  Int?
-  unitCost          Decimal       @db.Decimal(15, 2)
-  note              String?
+  quantityOrdered  Int
+  quantityReceived Int?
+  unitCost         Decimal @db.Decimal(15, 2)
+  note             String?
 
-  createdAt     DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([inboundId])
   @@index([skuId])
@@ -481,36 +482,36 @@ enum OutboundReason {
 }
 
 model Outbound {
-  id              String          @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  code            String          @unique @db.VarChar(30)
+  code String @unique @db.VarChar(30)
 
-  warehouseId     String          @db.Uuid
-  warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  reason          OutboundReason  @default(SALES_ORDER)
+  reason OutboundReason @default(SALES_ORDER)
 
-  salesOrderId    String?         @db.Uuid
-  salesOrder      SalesOrder?     @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
+  salesOrderId String?     @db.Uuid
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id], onDelete: Restrict)
 
-  supplierId      String?         @db.Uuid
+  supplierId String?   @db.Uuid
   // Restrict: cùng lý do với Inbound — không để xoá NCC làm mất nguồn gốc phiếu đã lưu
-  supplier        Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
-  createdByUserId String          @db.Uuid
-  createdBy       User            @relation(fields: [createdByUserId], references: [id])
+  createdByUserId String @db.Uuid
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
 
-  note            String?
-  status          OutboundStatus  @default(DRAFT)
-  confirmedAt     DateTime?
-  shippedAt       DateTime?
-  cancelledAt     DateTime?
-  cancelReason    String?
+  note         String?
+  status       OutboundStatus @default(DRAFT)
+  confirmedAt  DateTime?
+  shippedAt    DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?
 
-  items           OutboundItem[]
+  items OutboundItem[]
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([warehouseId])
@@ -519,17 +520,17 @@ model Outbound {
 }
 
 model OutboundItem {
-  id            String        @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  outboundId    String        @db.Uuid
-  outbound      Outbound      @relation(fields: [outboundId], references: [id])
+  outboundId String   @db.Uuid
+  outbound   Outbound @relation(fields: [outboundId], references: [id])
 
-  skuId         String        @db.Uuid
-  sku           SKU           @relation(fields: [skuId], references: [id])
+  skuId String @db.Uuid
+  sku   SKU    @relation(fields: [skuId], references: [id])
 
-  quantity      Int
+  quantity Int
 
-  createdAt     DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([outboundId])
   @@index([skuId])
@@ -548,30 +549,30 @@ enum TransferStatus {
 }
 
 model Transfer {
-  id                String          @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  code              String          @unique @db.VarChar(30)
+  code String @unique @db.VarChar(30)
 
-  fromWarehouseId   String          @db.Uuid
-  fromWarehouse     Warehouse       @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  fromWarehouseId String    @db.Uuid
+  fromWarehouse   Warehouse @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
 
-  toWarehouseId     String          @db.Uuid
-  toWarehouse       Warehouse       @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  toWarehouseId String    @db.Uuid
+  toWarehouse   Warehouse @relation("TransferTo", fields: [toWarehouseId], references: [id])
 
-  createdByUserId   String          @db.Uuid
-  createdBy         User            @relation(fields: [createdByUserId], references: [id])
+  createdByUserId String @db.Uuid
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
 
-  status            TransferStatus  @default(DRAFT)
-  confirmedAt       DateTime?
-  shippedAt         DateTime?
-  receivedAt        DateTime?
-  cancelledAt       DateTime?
-  cancelReason      String?
+  status       TransferStatus @default(DRAFT)
+  confirmedAt  DateTime?
+  shippedAt    DateTime?
+  receivedAt   DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?
 
-  items             TransferItem[]
+  items TransferItem[]
 
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([fromWarehouseId])
@@ -579,19 +580,19 @@ model Transfer {
 }
 
 model TransferItem {
-  id                String        @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  transferId        String        @db.Uuid
-  transfer          Transfer      @relation(fields: [transferId], references: [id])
+  transferId String   @db.Uuid
+  transfer   Transfer @relation(fields: [transferId], references: [id])
 
-  skuId             String        @db.Uuid
-  sku               SKU           @relation(fields: [skuId], references: [id])
+  skuId String @db.Uuid
+  sku   SKU    @relation(fields: [skuId], references: [id])
 
-  quantityShipped   Int
-  quantityReceived  Int?
-  note              String?
+  quantityShipped  Int
+  quantityReceived Int?
+  note             String?
 
-  createdAt         DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([transferId])
   @@index([skuId])
@@ -614,47 +615,92 @@ enum AdjustmentReason {
 }
 
 model InventoryAdjustment {
-  id              String                    @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  code            String                    @unique @db.VarChar(30)
+  code String @unique @db.VarChar(30)
 
-  warehouseId     String                    @db.Uuid
-  warehouse       Warehouse                 @relation(fields: [warehouseId], references: [id])
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
-  createdByUserId String                    @db.Uuid
-  createdBy       User                      @relation(fields: [createdByUserId], references: [id])
+  createdByUserId String @db.Uuid
+  createdBy       User   @relation(fields: [createdByUserId], references: [id])
 
-  reason          AdjustmentReason          @default(STOCK_COUNT)
-  note            String?
-  status          AdjustmentStatus          @default(DRAFT)
-  completedAt     DateTime?
+  reason      AdjustmentReason @default(STOCK_COUNT)
+  note        String?
+  status      AdjustmentStatus @default(DRAFT)
+  completedAt DateTime?
 
-  items           InventoryAdjustmentItem[]
+  items InventoryAdjustmentItem[]
 
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([warehouseId])
 }
 
 model InventoryAdjustmentItem {
-  id                String                @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  adjustmentId      String                @db.Uuid
-  adjustment        InventoryAdjustment   @relation(fields: [adjustmentId], references: [id])
+  adjustmentId String              @db.Uuid
+  adjustment   InventoryAdjustment @relation(fields: [adjustmentId], references: [id])
 
-  skuId             String                @db.Uuid
-  sku               SKU                   @relation(fields: [skuId], references: [id])
+  skuId String @db.Uuid
+  sku   SKU    @relation(fields: [skuId], references: [id])
 
-  quantityBefore    Int
-  quantityAfter     Int
-  expectedVersion   Int
+  quantityBefore  Int
+  quantityAfter   Int
+  expectedVersion Int
 
-  createdAt         DateTime              @default(now())
+  createdAt DateTime @default(now())
 
   @@index([adjustmentId])
   @@index([skuId])
+}
+
+// ============================================================
+// DOCUMENT STATUS HISTORY
+// ============================================================
+
+// Cùng danh sách giá trị với ReferenceType nhưng CỐ Ý tách riêng: ReferenceType trả lời
+// "chứng từ nào làm tồn kho biến động", còn cái này trả lời "chứng từ nào có trạng thái".
+// Hai câu hỏi khác nhau nên hai enum, không dùng chung để tránh thêm giá trị cho bên này
+// lại lòi ra ở bên kia.
+enum DocumentType {
+  RESERVATION
+  SALES_ORDER
+  INBOUND
+  OUTBOUND
+  TRANSFER
+  INVENTORY_ADJUSTMENT
+}
+
+// Nhật ký chuyển trạng thái dùng chung cho cả 6 module nghiệp vụ — thay cho việc rải
+// ~18 cột <action>ByUserId ra từng bảng. Khác InventoryMovement (audit số lượng): bảng này
+// ghi MỌI lần đổi status kể cả lần không đụng tới kho, mỗi lần đúng 1 dòng.
+model DocumentStatusHistory {
+  id String @id @default(uuid()) @db.Uuid
+
+  documentType DocumentType
+  // Polymorphic, KHÔNG phải FK — cùng khuôn InventoryMovement.referenceId. Đánh đổi:
+  // mất ràng buộc toàn vẹn ở tầng DB, đổi lấy 1 bảng thay vì 6.
+  documentId   String       @db.Uuid
+
+  // String chứ không phải enum: 6 module có 6 enum trạng thái khác nhau, không gộp được.
+  fromStatus String? @db.VarChar(30)
+  toStatus   String  @db.VarChar(30)
+
+  // NULL = hệ thống tự chuyển (job hết hạn), không có người nào bấm.
+  // Restrict để xoá user không xoá mất dấu người đã thao tác.
+  changedByUserId String? @db.Uuid
+  changedBy       User?   @relation(fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  note String?
+
+  createdAt DateTime @default(now())
+
+  @@index([documentType, documentId, createdAt])
+  @@index([changedByUserId])
 }
 
 // ============================================================
@@ -681,28 +727,28 @@ enum ReferenceType {
 }
 
 model InventoryMovement {
-  id              String          @id @default(uuid()) @db.Uuid
+  id String @id @default(uuid()) @db.Uuid
 
-  inventoryId     String          @db.Uuid
-  inventory       Inventory       @relation(fields: [inventoryId], references: [id])
+  inventoryId String    @db.Uuid
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
 
-  createdByUserId String?         @db.Uuid
+  createdByUserId String? @db.Uuid
   // Cột vẫn nullable (movement do job tự động sinh thì không có user nào) — nhưng Restrict
   // để xoá user KHÔNG xoá được dấu vết người đã thao tác trên các movement đã ghi
-  createdBy       User?           @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdBy       User?   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  movementType    MovementType
-  referenceType   ReferenceType
-  referenceId     String          @db.Uuid
+  movementType  MovementType
+  referenceType ReferenceType
+  referenceId   String        @db.Uuid
 
-  onHandBefore    Int
-  onHandAfter     Int
-  reservedBefore  Int
-  reservedAfter   Int
+  onHandBefore   Int
+  onHandAfter    Int
+  reservedBefore Int
+  reservedAfter  Int
 
-  note            String?
+  note String?
 
-  createdAt       DateTime        @default(now())
+  createdAt DateTime @default(now())
 
   @@index([inventoryId, createdAt])
   @@index([referenceType, referenceId])
