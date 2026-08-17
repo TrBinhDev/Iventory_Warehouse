@@ -13,6 +13,8 @@ export const listCategoriesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  // MỘT ô tìm cho 2 cột: name, code. Bảng này không có phone nên không có nhánh sđt.
+  search: z.string().trim().min(1).max(255).optional(),
 });
 
 export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>;

@@ -93,6 +93,9 @@ model Category {
   updatedAt DateTime @updatedAt
 
   @@index([status])
+  // Index trigram cho ô tìm kiếm gộp (GET /categories?search=)
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 enum WarehouseStatus {

@@ -29,6 +29,13 @@ export async function listCategories(query: ListCategoriesQuery) {
     where.status = query.status;
   }
 
+  if (query.search) {
+    where.OR = [
+      { name: { contains: query.search, mode: "insensitive" } },
+      { code: { contains: query.search, mode: "insensitive" } },
+    ];
+  }
+
   const skip = (query.page - 1) * query.limit;
 
   const [items, total] = await Promise.all([

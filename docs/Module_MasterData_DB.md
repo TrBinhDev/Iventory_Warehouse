@@ -192,6 +192,8 @@ Supplier  (1) ─────────────< Inbound (N)     // địn
 |---|---|
 | `GET /warehouses?search=` | `name`, `code`, `address`, `phone` |
 | `GET /suppliers?search=` | `name`, `code`, `contactName`, `email`, `phone` |
+| `GET /categories?search=` | `name`, `code` |
+| `GET /products?search=` | `name`, `code` |
 
 Cùng khuôn với `GET /sales-orders?customer=` (tìm khách theo tên/email/sđt) — hai chỗ cùng kiểu thì dễ dùng hơn là mỗi chỗ một quy ước.
 
@@ -201,6 +203,6 @@ Cùng khuôn với `GET /sales-orders?customer=` (tìm khách theo tên/email/s�
 
 Chuẩn hoá là **mất mát có chủ ý**: `(090) 123 4567` lưu thành `0901234567`, không khôi phục được định dạng gốc. Chấp nhận vì `phone` ở đây chỉ để liên lạc.
 
-**Index**: 8 index GIN trigram (`Supplier` 5 cột, `Warehouse` 3 cột) — btree không dùng được cho `ILIKE '%...%'` khớp giữa chuỗi. Khai trong `schema.prisma` bằng `@@index([col(ops: raw("gin_trgm_ops"))], type: Gin)` chứ không tạo bằng raw SQL, nếu không mỗi lần `migrate diff` Prisma sẽ coi là lệch schema và sinh lệnh `DROP INDEX`.
+**Index**: 12 index GIN trigram trên master data (`Supplier` 5 cột, `Warehouse` 3, `Category` 2, `Product` 2) — btree không dùng được cho `ILIKE '%...%'` khớp giữa chuỗi. Khai trong `schema.prisma` bằng `@@index([col(ops: raw("gin_trgm_ops"))], type: Gin)` chứ không tạo bằng raw SQL, nếu không mỗi lần `migrate diff` Prisma sẽ coi là lệch schema và sinh lệnh `DROP INDEX`.
 
 ⚠️ Index đã có sẵn để dùng khi dữ liệu lớn, nhưng **chưa đo được là nhanh hơn** — với vài chục dòng thì Postgres luôn chọn quét toàn bảng vì rẻ hơn.
