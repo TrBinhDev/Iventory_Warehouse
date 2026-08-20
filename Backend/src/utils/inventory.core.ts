@@ -49,6 +49,28 @@ export function lockInventoryRows(
   `;
 }
 
+// Đảm bảo đã có dòng tồn cho từng cặp warehouseId+skuId TRƯỚC khi khoá — dùng khi SKU có thể
+// lần đầu về kho này (hiện chỉ inbound cần; reservation/sales-order/outbound luôn đòi dòng có
+// sẵn từ trước, thiếu là NotFound chứ không tự tạo).
+//
+// INSERT ... ON CONFLICT DO NOTHING thay vì kiểm-rồi-tạo (check-then-create): 2 transaction
+// cùng nhập 1 SKU lần đầu vào cùng kho, chạy đồng thời, không có race — bên thua chỉ đơn giản
+// không chèn được gì (dòng đã có), rồi cả hai cùng đọc dòng đó qua lockInventoryRows như bình
+// thường, xếp hàng chờ FOR UPDATE. Khởi tạo onHand=0: hàm này chỉ đảm bảo CÓ dòng để khoá,
+// không đụng tới số lượng — applyInventoryDeltas ngay sau đó mới là nơi cộng số thật.
+export async function ensureInventoryRows(
+  tx: Prisma.TransactionClient,
+  warehouseId: string,
+  skuIds: string[],
+): Promise<void> {
+  await tx.$executeRaw`
+    INSERT INTO "Inventory" (id, "warehouseId", "skuId", "quantityOnHand", "quantityReserved", version, "createdAt", "updatedAt")
+    SELECT gen_random_uuid(), ${warehouseId}::uuid, sku_id, 0, 0, 0, now(), now()
+    FROM unnest(${skuIds}::uuid[]) AS sku_id
+    ON CONFLICT ("warehouseId", "skuId") DO NOTHING
+  `;
+}
+
 // Cập nhật tồn kho và ghi audit trong CÙNG transaction — rule cứng của dự án, không được tách.
 //
 // Caller tự kiểm điều kiện nghiệp vụ (đủ hàng chưa, âm không) TRƯỚC khi gọi, vì mỗi module một

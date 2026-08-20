@@ -247,4 +247,49 @@ export const Message = {
       message: "Phiếu giữ chỗ này đã được chuyển thành đơn hàng",
     },
   },
+
+  INBOUND: {
+    NOT_FOUND: { code: "INBOUND_NOT_FOUND", message: "Không tìm thấy phiếu nhập kho" },
+    WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    SUPPLIER_NOT_FOUND: { code: "SUPPLIER_NOT_FOUND", message: "Không tìm thấy nhà cung cấp" },
+    SALES_ORDER_NOT_FOUND: { code: "SALES_ORDER_NOT_FOUND", message: "Không tìm thấy đơn hàng" },
+    // Chỉ đơn đã giao hoàn thành mới được tạo phiếu trả hàng — đơn còn PENDING/CANCELLED... đều chặn
+    SALES_ORDER_NOT_COMPLETED: {
+      code: "SALES_ORDER_NOT_COMPLETED",
+      message: "Chỉ đơn hàng đã giao hoàn thành mới được tạo phiếu trả hàng",
+    },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+
+    // reason FROM_SUPPLIER/CUSTOMER_RETURN kéo theo supplierId/salesOrderId bắt buộc theo điều kiện
+    SUPPLIER_REQUIRED: {
+      code: "SUPPLIER_REQUIRED",
+      message: "Nhập từ nhà cung cấp phải chọn nhà cung cấp",
+    },
+    SUPPLIER_NOT_ALLOWED: {
+      code: "SUPPLIER_NOT_ALLOWED",
+      message: "Nhập từ trả hàng không được chọn nhà cung cấp",
+    },
+    SALES_ORDER_REQUIRED: {
+      code: "SALES_ORDER_REQUIRED",
+      message: "Nhập từ trả hàng phải chọn đơn hàng",
+    },
+    SALES_ORDER_NOT_ALLOWED: {
+      code: "SALES_ORDER_NOT_ALLOWED",
+      message: "Nhập từ nhà cung cấp không được chọn đơn hàng",
+    },
+
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Chỉ được thao tác trên kho mình quản lý",
+    },
+    INVALID_STATUS: {
+      code: "INBOUND_INVALID_STATUS",
+      message: "Phiếu nhập không ở trạng thái cho phép thao tác này",
+    },
+    // Bước receive bắt buộc gửi đủ mọi item trong phiếu, không suy luận ngầm số thiếu
+    ITEMS_MISMATCH: {
+      code: "ITEMS_MISMATCH",
+      message: "Danh sách SKU gửi lên không khớp với danh sách trong phiếu",
+    },
+  },
 } as const;

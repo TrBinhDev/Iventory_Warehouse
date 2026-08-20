@@ -461,6 +461,7 @@ model Inbound {
   @@index([warehouseId])
   @@index([supplierId])
   @@index([salesOrderId])
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model InboundItem {

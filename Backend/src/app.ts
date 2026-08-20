@@ -13,6 +13,7 @@ import { productRouter } from "./modules/product/product.routes.js";
 import { inventoryRouter } from "./modules/inventory/inventory.routes.js";
 import { reservationRouter } from "./modules/reservation/reservation.routes.js";
 import { salesOrderRouter } from "./modules/sales-order/sales-order.routes.js";
+import { inboundRouter } from "./modules/inbound/inbound.routes.js";
 import { uploadRouter } from "./modules/upload/upload.routes.js";
 
 const app = express();
@@ -35,6 +36,7 @@ app.use("/products", productRouter);
 app.use("/inventories", inventoryRouter);
 app.use("/reservations", reservationRouter);
 app.use("/sales-orders", salesOrderRouter);
+app.use("/inbounds", inboundRouter);
 app.use("/uploads", uploadRouter);
 
 app.use(notFoundHandler);
