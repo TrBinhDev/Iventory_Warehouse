@@ -538,6 +538,7 @@ model Outbound {
   @@index([warehouseId])
   @@index([salesOrderId])
   @@index([supplierId])
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model OutboundItem {

@@ -292,4 +292,66 @@ export const Message = {
       message: "Danh sách SKU gửi lên không khớp với danh sách trong phiếu",
     },
   },
+
+  OUTBOUND: {
+    NOT_FOUND: { code: "OUTBOUND_NOT_FOUND", message: "Không tìm thấy phiếu xuất kho" },
+    WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    SUPPLIER_NOT_FOUND: { code: "SUPPLIER_NOT_FOUND", message: "Không tìm thấy nhà cung cấp" },
+    SALES_ORDER_NOT_FOUND: { code: "SALES_ORDER_NOT_FOUND", message: "Không tìm thấy đơn hàng" },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+
+    // reason quyết định salesOrderId/supplierId/items bắt buộc cái nào
+    SALES_ORDER_REQUIRED: {
+      code: "SALES_ORDER_REQUIRED",
+      message: "Xuất theo đơn hàng phải chọn đơn hàng",
+    },
+    SUPPLIER_NOT_ALLOWED: {
+      code: "SUPPLIER_NOT_ALLOWED",
+      message: "Xuất theo đơn hàng không được chọn nhà cung cấp",
+    },
+    ITEMS_NOT_ALLOWED: {
+      code: "ITEMS_NOT_ALLOWED",
+      message: "Xuất theo đơn hàng tự lấy danh sách SKU từ đơn hàng, không nhận items",
+    },
+    SUPPLIER_REQUIRED: {
+      code: "SUPPLIER_REQUIRED",
+      message: "Trả hàng về nhà cung cấp phải chọn nhà cung cấp",
+    },
+    SALES_ORDER_NOT_ALLOWED: {
+      code: "SALES_ORDER_NOT_ALLOWED",
+      message: "Không được chọn đơn hàng cho lý do xuất kho này",
+    },
+    ITEMS_REQUIRED: {
+      code: "ITEMS_REQUIRED",
+      message: "Cần nhập danh sách SKU cho lý do xuất kho này",
+    },
+    NOTE_REQUIRED: {
+      code: "NOTE_REQUIRED",
+      message: "Cần nhập ghi chú lý do xuất kho",
+    },
+
+    // Chỉ đơn đã duyệt (CONFIRMED) mới được tạo phiếu xuất theo đơn hàng đó
+    SALES_ORDER_NOT_CONFIRMED: {
+      code: "SALES_ORDER_NOT_CONFIRMED",
+      message: "Chỉ đơn hàng đã duyệt mới được tạo phiếu xuất kho",
+    },
+    // 1 SalesOrder chỉ ứng với 1 phiếu Outbound còn hiệu lực (chưa CANCELLED)
+    SALES_ORDER_ALREADY_HAS_OUTBOUND: {
+      code: "SALES_ORDER_ALREADY_HAS_OUTBOUND",
+      message: "Đơn hàng này đã có phiếu xuất kho khác đang xử lý",
+    },
+
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Chỉ được thao tác trên kho mình quản lý",
+    },
+    INVALID_STATUS: {
+      code: "OUTBOUND_INVALID_STATUS",
+      message: "Phiếu xuất không ở trạng thái cho phép thao tác này",
+    },
+    OUT_OF_STOCK: {
+      code: "OUT_OF_STOCK",
+      message: "Tồn kho không đủ để xuất — dữ liệu có thể đã lệch, cần kiểm tra lại",
+    },
+  },
 } as const;
