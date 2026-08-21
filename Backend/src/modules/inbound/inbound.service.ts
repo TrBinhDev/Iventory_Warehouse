@@ -273,11 +273,17 @@ export async function receiveInbound(actor: Actor, id: string, input: ReceiveInb
 
     const dbItems = await inboundRepository.findInboundItems(tx, id);
     const dbItemIds = new Set(dbItems.map((item) => item.id));
-    const bodyItemIds = new Set(input.items.map((item) => item.itemId));
 
-    // Định danh theo itemId (không phải skuId): 1 phiếu có thể có 2 dòng cùng SKU khác lô/giá
+    // Set thay vì đọc thẳng độ dài mảng — bắt được ca body gửi TRÙNG itemId (client gửi 2 dòng
+    // cùng itemId, quantityReceived khác nhau): so sánh Set-với-Set không tự phát hiện được vì
+    // Set tự dedupe, nên phải so thêm với độ dài mảng gốc để lộ ra chỗ bị dedupe ngầm — không
+    // corrupt dữ liệu (quantityByItemId là Map nên chỉ giữ giá trị ghi sau cùng, không cộng dồn)
+    // nhưng lặng lẽ dùng nhầm giá trị thay vì từ chối là vi phạm đúng luật "gửi đủ, không suy
+    // luận ngầm" của chính endpoint này — cùng lớp lỗi vừa sửa ở transfer.receive.
+    const bodyItemIds = new Set(input.items.map((item) => item.itemId));
     const mismatched =
       dbItemIds.size !== bodyItemIds.size ||
+      bodyItemIds.size !== input.items.length ||
       [...dbItemIds].some((itemId) => !bodyItemIds.has(itemId));
     if (mismatched) {
       throw new BadRequestError(
