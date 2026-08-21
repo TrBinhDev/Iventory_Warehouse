@@ -383,4 +383,38 @@ export const Message = {
       message: "Danh sách SKU gửi lên không khớp với danh sách trong phiếu",
     },
   },
+
+  INVENTORY_ADJUSTMENT: {
+    NOT_FOUND: { code: "ADJUSTMENT_NOT_FOUND", message: "Không tìm thấy phiếu điều chỉnh tồn kho" },
+    WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+    // Inventory chưa từng khai báo cho SKU này ở kho này — không có gì để kiểm kê
+    INVENTORY_NOT_FOUND: {
+      code: "INVENTORY_NOT_FOUND",
+      message: "Kho này chưa khai báo tồn cho một số SKU",
+    },
+    // 2 dòng cùng SKU trong 1 phiếu là mâu thuẫn logic (set onHand thành 2 giá trị khác nhau)
+    DUPLICATE_SKU: {
+      code: "DUPLICATE_SKU",
+      message: "Danh sách SKU bị trùng — mỗi SKU chỉ được xuất hiện 1 lần trong phiếu",
+    },
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Chỉ được thao tác trên kho mình quản lý",
+    },
+    INVALID_STATUS: {
+      code: "ADJUSTMENT_INVALID_STATUS",
+      message: "Phiếu điều chỉnh không ở trạng thái cho phép thao tác này",
+    },
+    // Khoá optimistic: dòng tồn đã bị thay đổi bởi giao dịch khác kể từ lúc mở phiếu kiểm kê
+    VERSION_CONFLICT: {
+      code: "VERSION_CONFLICT",
+      message: "Tồn kho đã bị thay đổi kể từ lúc mở phiếu kiểm kê, vui lòng kiểm tra lại",
+    },
+    // reserved hiện tại (có thể đã tăng kể từ lúc mở phiếu) lớn hơn số vừa đếm được
+    BELOW_RESERVED: {
+      code: "ADJUSTMENT_BELOW_RESERVED",
+      message: "Số lượng kiểm kê thấp hơn số đang bị giữ chỗ, không thể điều chỉnh",
+    },
+  },
 } as const;

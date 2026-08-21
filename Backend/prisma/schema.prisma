@@ -660,6 +660,7 @@ model InventoryAdjustment {
 
   @@index([status])
   @@index([warehouseId])
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model InventoryAdjustmentItem {

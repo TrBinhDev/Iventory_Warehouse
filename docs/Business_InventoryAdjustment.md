@@ -102,3 +102,21 @@ SKU                  (1) ─────────────< InventoryAdjus
 7. **`InventoryAdjustmentItem` không có `updatedAt`** — cùng nguyên tắc snapshot bất biến như `ReservationItem`/`SalesOrderItem`, không sửa sau khi đã submit.
 
 8. **`code`** — mã phiếu điều chỉnh dễ đọc (VD `ADJ-20260811-0001`), cùng nguyên tắc với `Reservation.code`.
+
+9. **Chốt khi code (2026-08-21): thêm `DELETE /inventory-adjustments/:id`, chỉ cho phiếu còn `DRAFT`.** Enum `AdjustmentStatus` không có `CANCELLED` nên không có cách chính thức "huỷ" — xoá cứng là cách duy nhất dọn phiếu mở nhầm. Không phải thiếu sót: `DRAFT` là **giai đoạn duy nhất** có "khoảng hở" để đổi ý, vì `complete` gộp cả "nộp" và "áp dụng vào tồn kho" trong CÙNG 1 hành động (khác `inbound`/`outbound`/`transfer` có khoảng cách vật lý thật giữa duyệt và xuất/nhận, nên mới cần `CANCELLED` riêng). Sau `COMPLETED` thì không xoá/huỷ được — muốn sửa sai phải mở phiếu Adjustment mới, đúng nguyên tắc audit giữ lại dấu vết.
+
+   ⚠️ **Race condition đã tự phát hiện lúc code (chưa từng chạy để lộ ra) — giữa `DELETE` và `complete` chạy đồng thời trên cùng 1 phiếu:** nếu `DELETE` chỉ đọc `status` riêng rồi mới xoá (không khoá gì), trong lúc đó `complete` chạy xong trước và áp dụng thật vào `Inventory` (ghi `InventoryMovement` thật), `DELETE` phía sau vẫn xoá theo giá trị `status` cũ đã đọc — xoá mất `InventoryAdjustmentItem` gốc của 1 lần đổi tồn kho ĐÃ THẬT SỰ XẢY RA, chỉ còn `InventoryMovement` mồ côi không đối chiếu được nữa. Sửa bằng `SELECT ... FOR UPDATE` trên chính dòng `InventoryAdjustment` trước khi xoá — không phải để tránh ABBA (không có tài nguyên thứ 2) mà để chặn race với chính `complete` (vốn cũng khoá dòng này qua `UPDATE` điều kiện `status='DRAFT'`). Đã kiểm bằng test đồng thời thật: 8 cặp `complete` vs `delete` chạy song song trên 8 phiếu khác nhau → mọi cặp đều dứt khoát (1 `complete` thắng, 7 `delete` thắng trong 1 lần chạy — tỉ lệ ngẫu nhiên), không phiếu nào rơi vào trạng thái vừa mất item vừa còn `COMPLETED`.
+
+## API đã triển khai
+
+| Method | Path | Chức năng nghiệp vụ | Ghi `Inventory` |
+|---|---|---|---|
+| `POST` | `/inventory-adjustments` | Mở phiếu kiểm kê — snapshot `quantityBefore`+`expectedVersion` từ tồn hiện tại | ❌ |
+| `GET` | `/inventory-adjustments` | Danh sách có phân trang, lọc trạng thái/kho/lý do/mã | ❌ |
+| `GET` | `/inventory-adjustments/:id` | Chi tiết + dòng hàng + dòng thời gian ai bấm bước nào | ❌ |
+| `PATCH` | `/inventory-adjustments/:id/complete` | Set `onHand` mới theo số đếm được — **khoá optimistic, KHÔNG `FOR UPDATE`** | ✅ `onHand :=` (set thẳng, không cộng dồn) |
+| `DELETE` | `/inventory-adjustments/:id` | Xoá cứng phiếu còn `DRAFT` | ❌ |
+
+`GET /inventory-adjustments` nhận: `page`, `limit`, `status`, `reason`, `warehouseId`, `code`. Không có `search` gộp — cùng lý do `inbound`/`outbound`/`transfer`.
+
+**Phân quyền: CHỈ `WAREHOUSE_MANAGER`/`ADMIN`, ở MỌI route kể cả xem** — khác hẳn 3 module trước (đều cho Staff xem, chỉ chặn ở bước duyệt/tạo). `WAREHOUSE_STAFF` bị chặn `403` ngay từ route, không lộ được cả danh sách kiểm kê của kho mình — đúng tinh thần kiểm soát nội bộ ở note 3.
