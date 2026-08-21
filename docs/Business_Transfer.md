@@ -144,4 +144,40 @@ SKU       (1) ─────────────< TransferItem (N)
 
     Huỷ phiếu chỉ cho phép khi `DRAFT`/`CONFIRMED` — lúc đó chưa chạm `Inventory` kho nào (điểm 3), nên chỉ update status, không cần transaction/lock. Đã `SHIPPED` thì không huỷ được vì kho A đã trừ `onHand`, muốn đảo phải tạo phiếu Transfer ngược lại.
 
-    Liên quan: điểm 8 đã nêu schema hiện chỉ có 1 `createdByUserId` (nhân viên kho nguồn tạo phiếu), không track riêng ai xác nhận `RECEIVED` ở kho B. Nếu muốn audit đầy đủ theo bảng phân quyền này thì cân nhắc thêm `receivedByUserId` (nullable) khi làm module.
+    Liên quan: điểm 8 đã nêu schema hiện chỉ có 1 `createdByUserId` (nhân viên kho nguồn tạo phiếu), không track riêng ai xác nhận `RECEIVED` ở kho B. **Chốt khi code (2026-08-21): KHÔNG thêm cột `receivedByUserId`** — dùng `DocumentStatusHistory` (`documentType='TRANSFER', toStatus='RECEIVED'` → `changedByUserId`) để trả lời "ai nhận hàng". Bảng đó sinh ra chính xác để giải quyết bài toán này (xem `Business_DocumentStatusHistory.md`, phần "Vì sao có bảng này") — thêm cột riêng cho 1 bước mà bỏ qua 3 bước kia (`confirm`/`ship`/`cancel`) là không nhất quán.
+
+11. **Đính chính dự đoán ban đầu: KHÔNG có nguy cơ khoá 2 kho cùng lúc.** `SHIPPED` và `RECEIVED` là 2 transaction hoàn toàn tách biệt (note 4, 5) — `ship` chỉ khoá `Inventory` kho A, `receive` chỉ khoá `Inventory` kho B, không transaction nào cầm khoá của cả 2 kho cùng lúc. Thiết kế 2-transaction này tự động tránh được vấn đề thứ tự khoá giữa 2 `warehouseId` mà lẽ ra sẽ cần nếu 1 transaction đụng cả 2 kho (như deadlock đã gặp và sửa ở `outbound` — xem note 11 của `Business_Outbound.md`).
+
+12. **Check ở bước `SHIPPED` là chốt CÓ THẬT, khác `OUT_OF_STOCK` bên `outbound` (đã verify là không thể chạm tới vì có `reserved` bảo đảm trước).** `Transfer` KHÔNG đụng `reserved` ở bất kỳ bước nào — lúc tạo phiếu (`DRAFT`) không có gì giữ chỗ số lượng đó, nên giữa lúc tạo và lúc `SHIPPED` thật, `onHand` kho nguồn hoàn toàn có thể bị giao dịch khác tiêu thụ trước. Đã kiểm bằng test đồng thời thật: `onHand=10`, 2 phiếu cùng xin 8 (tổng 16 > 10), `ship` đồng thời → đúng 1 phiếu thành công (`onHand` còn 2), phiếu kia nhận `OUT_OF_STOCK` thật — không phải suy luận lý thuyết.
+
+    ⚠️ **Bug thật đã dính lúc code (2026-08-21, sửa trước khi commit), user tự phát hiện bằng câu hỏi:** *"onHand có 100 mà reserved có 70 thì mình chuyển kho đi 40 thì sao?"* Bản đầu chỉ check `onHand >= quantityShipped` (`100 >= 40` → cho qua), **KHÔNG trừ `reserved` ra trước** — chuyển đi 40 thì `reserved` (70) còn lại lớn hơn `onHand` (60), vi phạm bất biến `reserved <= onHand` mà không tầng nào ở service chặn được. Lọt xuống DB thì `CHECK constraint Inventory_quantityReserved_lte_onHand` mới chặn (Postgres `23514`), transaction rollback đúng (không hỏng dữ liệu) nhưng lộ ra thành `500 INTERNAL_ERROR` thô thay vì `409 OUT_OF_STOCK` sạch.
+
+    Sửa: so với **AVAILABLE** (`onHand - reserved`), không phải `onHand` trần — cùng công thức `available` mà `reservation`/`sales-order` dùng để check đủ hàng lúc giữ chỗ. Đã kiểm lại bằng 3 ca: `onHand=100, reserved=70`, chuyển 40 (> available 30) → `409 OUT_OF_STOCK` sạch, `Inventory` không đổi; chuyển đúng 30 (= available) → `200 OK`; `reserved=0`, chuyển gần hết `onHand` → vẫn `200 OK` bình thường (không bị chặn oan khi không có gì giữ chỗ).
+
+13. **Gộp dòng trùng SKU trong 1 phiếu lúc tạo**, cùng lý do và cùng cách `outbound`: `TransferItem` không có giá riêng từng dòng (`quantityShipped`/`quantityReceived`/`note` không cái nào phân biệt được 2 dòng cùng SKU), nên 2 dòng trùng SKU vô nghĩa nếu giữ riêng. Hệ quả: bước `receive` định danh theo `skuId` (không phải `TransferItem.id`) — vì sau khi gộp, mỗi phiếu tối đa 1 dòng/SKU nên `skuId` đủ để định danh không mơ hồ, khác `inbound.receive` (phải dùng `itemId` vì có thể có nhiều dòng cùng SKU khác lô/giá thật sự).
+
+    ⚠️ **Bug thật thứ 2 đã dính lúc code (2026-08-21, sửa trước khi commit), phát hiện khi rà lại code sau bug đầu tiên (note 12) chứ không phải do test tự động bắt được:** vì mỗi phiếu chỉ có tối đa 1 dòng/SKU (do đã gộp ở trên), tôi ngỡ body `receive` không thể có 2 dòng trùng `skuId` — nhưng **client hoàn toàn gửi được**, không có gì ngăn. Bản đầu check "đủ mọi SKU" bằng so sánh `Set` (tự dedupe), nên 2 dòng trùng `skuId` trong body **lọt qua được** kiểm tra. Sau đó `applyInventoryDeltas` nhận thẳng mảng thô (chưa gộp) nên cộng **CẢ 2 dòng** vào `onHand` (VD gửi `{qty:3}` và `{qty:7}` thì `onHand` kho đích cộng nhầm thành 10), trong khi `TransferItem.quantityReceived` chỉ lưu dòng ghi sau cùng (7, do là `UPDATE` chứ không phải cộng dồn) — **2 nguồn dữ liệu lệch nhau**, và **không hề bị chặn**, trả `200 OK` với số liệu sai (nặng hơn bug ở note 12 vì bug đó còn bị `CHECK constraint` chặn ở tầng DB, bug này thì không vi phạm constraint nào nên lọt hẳn).
+
+    Sửa: gộp `input.items` vào 1 `Map` theo `skuId` trước khi làm bất cứ điều gì — nếu phát hiện `skuId` trùng ngay lúc dựng `Map` thì từ chối luôn (`ITEMS_MISMATCH`), không lặng lẽ chấp nhận. Dùng `Map` này (không phải mảng thô) cho cả bước ghi `TransferItem` lẫn `applyInventoryDeltas`. Đã kiểm lại: gửi 2 dòng trùng SKU → `400 ITEMS_MISMATCH`, không đụng DB; ca 2 SKU khác nhau bình thường và ca thiếu SKU vẫn hoạt động đúng như trước.
+
+    **Bài học áp dụng cho `inventory-adjustment`/module sau:** bất kỳ chỗ nào validate "đủ/đúng danh sách" bằng `Set` rồi sau đó lại dùng **mảng gốc** (chưa qua `Set`/`Map`) để ghi dữ liệu, đều có nguy cơ y hệt — `Set`/`Map` dùng để kiểm tra phải là **cùng một cấu trúc** dùng để ghi, không phải 2 bước tách rời.
+
+14. **`code` sinh từ sequence `transfer_code_seq`**, dạng `TRF-YYYYMMDD-XXXXXX`, cùng khuôn 4 sequence trước.
+
+15. **ABAC xem (list/detail) khác ABAC thao tác:** xem được nếu kho mình là NGUỒN **hoặc** ĐÍCH (cả 2 bên đều liên quan tới phiếu); thao tác (`confirm`/`ship`/`cancel`) chỉ kho NGUỒN, riêng `receive` chỉ kho ĐÍCH (note 10). Manager/Staff gửi `fromWarehouseId`/`toWarehouseId` trong query `GET /transfers` bị bỏ qua (không có tác dụng) — luôn ép theo đúng kho mình liên quan, cùng cách `inventory`/`inbound`/`outbound` xử lý `warehouseId`.
+
+16. **Không cần `Idempotency-Key`** — double-submit ở mọi bước đổi status đã bị chặn bởi điều kiện `WHERE status = <nguồn>`, cùng lý do `inbound`/`outbound`.
+
+## API đã triển khai
+
+| Method | Path | Chức năng nghiệp vụ | Ghi `Inventory` |
+|---|---|---|---|
+| `POST` | `/transfers` | Lập phiếu chuyển kho nháp — kho nguồn, kho đích, SKU + số dự kiến | ❌ |
+| `GET` | `/transfers` | Danh sách có phân trang, lọc trạng thái/kho nguồn/kho đích/mã | ❌ |
+| `GET` | `/transfers/:id` | Chi tiết + dòng hàng + dòng thời gian ai bấm bước nào | ❌ |
+| `PATCH` | `/transfers/:id/confirm` | Duyệt phiếu (kho nguồn), cho phép xuất | ❌ |
+| `PATCH` | `/transfers/:id/ship` | Kho nguồn xác nhận đã xuất — trừ `onHand` kho A | ✅ `onHand -=` (kho A) |
+| `PATCH` | `/transfers/:id/receive` | Kho đích ghi số thực nhận — cộng `onHand` kho B | ✅ `onHand +=` (kho B) |
+| `PATCH` | `/transfers/:id/cancel` | Huỷ phiếu còn `DRAFT`/`CONFIRMED` (kho nguồn) | ❌ |
+
+`GET /transfers` nhận: `page`, `limit`, `status`, `fromWarehouseId`, `toWarehouseId`, `code`. Không có `search` gộp — cùng lý do `inbound`/`outbound` (không có cột định danh dạng tên/email/sđt).

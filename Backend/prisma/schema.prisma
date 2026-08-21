@@ -599,6 +599,7 @@ model Transfer {
   @@index([status])
   @@index([fromWarehouseId])
   @@index([toWarehouseId])
+  @@index([code(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model TransferItem {

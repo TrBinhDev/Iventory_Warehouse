@@ -354,4 +354,33 @@ export const Message = {
       message: "Tồn kho không đủ để xuất — dữ liệu có thể đã lệch, cần kiểm tra lại",
     },
   },
+
+  TRANSFER: {
+    NOT_FOUND: { code: "TRANSFER_NOT_FOUND", message: "Không tìm thấy phiếu chuyển kho" },
+    WAREHOUSE_NOT_FOUND: { code: "WAREHOUSE_NOT_FOUND", message: "Không tìm thấy kho" },
+    SKU_NOT_FOUND: { code: "SKU_NOT_FOUND", message: "Không tìm thấy SKU" },
+    SAME_WAREHOUSE: {
+      code: "SAME_WAREHOUSE",
+      message: "Kho nguồn và kho đích phải khác nhau",
+    },
+    FORBIDDEN_WAREHOUSE: {
+      code: "FORBIDDEN_WAREHOUSE",
+      message: "Chỉ được thao tác trên kho mình quản lý",
+    },
+    INVALID_STATUS: {
+      code: "TRANSFER_INVALID_STATUS",
+      message: "Phiếu chuyển kho không ở trạng thái cho phép thao tác này",
+    },
+    // Không dùng reserved nên đây là chốt CÓ THẬT (khác OUT_OF_STOCK bên outbound — nhánh
+    // lý thuyết không thể chạm tới vì có reserved bảo đảm trước)
+    OUT_OF_STOCK: {
+      code: "OUT_OF_STOCK",
+      message: "Kho nguồn không còn đủ hàng để xuất",
+    },
+    // Bước receive bắt buộc gửi đủ mọi SKU trong phiếu, không suy luận ngầm số thiếu
+    ITEMS_MISMATCH: {
+      code: "ITEMS_MISMATCH",
+      message: "Danh sách SKU gửi lên không khớp với danh sách trong phiếu",
+    },
+  },
 } as const;
